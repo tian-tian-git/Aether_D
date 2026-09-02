@@ -44,10 +44,21 @@ Aether_D/
 
 ## 当前状态
 
-- **M0 立项与框架** ✅
-- **M1 语法与解析** ✅(词法/解析/打印/诊断/CLI,87 项测试)
-- **M2 解释器 MVP** ✅(`aether run` 可执行程序、REPL、26 项 golden/错误路径测试、性能基线)—— 详见 [docs/roadmap.md](docs/roadmap.md)
-- **M3 类型与契约验证** 待开始
+**MVP 达成:AI 生成的 Aether 代码 → 解析 → 类型检查 → Z3 静态契约验证 → 字节码 VM 执行,全链路可运行。**
+
+| 里程碑 | 状态 | 关键产物 |
+| :--- | :--- | :--- |
+| M0 立项与框架 | ✅ | 愿景/路线图/架构/协作手册 |
+| M1 语法与解析 | ✅ | spec v0.1 + lexer/parser/printer/诊断 |
+| M2 解释器 MVP | ✅ | 树遍历解释器 + 40+ 内建 |
+| M3 类型与契约验证 | ✅ | 双向类型检查 + Z3 静态验证(反例模型) |
+| M4 AI 生成回路 | 🟡 部分达成 | 基准 15% 通过/token -55%;M6 蒸馏已给正解(+62.5pp) |
+| M5 性能后端 | ✅ | 字节码 VM(CPython 同量级,默认后端) |
+| M6 自举与静态蒸馏 | ✅ | Aether 标准库自举 + 图补丁 + 蒸馏实验 |
+| M7+ | 💭 愿景 | 意图市场 / 硬件适配(不排期) |
+
+> 待人类总监裁决:门禁确认(M1 spec 冻结 / M3 规范冻结 / M5 ADR-0002)+ M4 部分达成结论。
+> 详见 [docs/roadmap.md](docs/roadmap.md) 与 [docs/bench/](docs/bench/) 各报告。
 
 ## 快速开始
 
@@ -55,12 +66,18 @@ Aether_D/
 cargo build --release
 cargo run -p aether-cli -- run examples/hello.ae                # 运行程序(输出 Hello, Aether!)
 cargo run -p aether-cli -- check examples/bounds.ae             # 类型检查 + Z3 静态契约验证(演示 E4001)
+cargo run -p aether-cli -- run lib/aether-std.ae                # Aether 自举标准库(qsort/fib 等 19 函数)
 cargo run -p aether-cli -- parse examples/sort.ae               # 解析并 dump AST
 cargo run -p aether-cli -- repl                                 # 交互式求值
-cargo test                                                      # 112 项测试
+cargo run -p aether-vm --example graph_patch                    # M6 图补丁/热更新 demo
+cargo test                                                      # 138 项测试
 
-# M4 生成回路基准(本地 Ollama,模型 gemma3:4b):
-python tools/harness/harness.py --tasks fib,gcd    # 全量省略 --tasks
+# 自然语言 → AI 生成 → 验证 → 执行(项目愿景端到端,需本地 Ollama):
+python tools/harness/demo_nl.py "写一个斐波那契函数,带前置条件契约" --input 10
+
+# M4/M6 生成回路基准(需本地 Ollama,模型默认 gemma3:4b):
+python tools/harness/harness.py --tasks fib,gcd                # 全量省略 --tasks
+python tools/harness/harness.py --corpus lib/aether-std.ae     # 静态蒸馏模式
 ```
 
 ## 工作方式
