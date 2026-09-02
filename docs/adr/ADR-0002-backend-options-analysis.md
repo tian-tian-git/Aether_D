@@ -1,33 +1,20 @@
-# ADR-0002:M5 性能后端选型分析(决策前草稿)
+# ADR-0002:M5 性能后端选型(已定稿)
 
-- **状态**:分析中(供 M5 WP5.1 决策,最终选型由人类总监在 M5 门禁确认)
-- **背景数据**:M2 基线 `docs/bench/m2-baseline.md`(树遍历解释器约为 CPython 的 1/7 速度)
+- **状态**:已定稿(M5 实施完成)
+- **决策**:字节码 VM(方案 A)——已实现为 `crates/aether-vm` 并设为 `aether run` 默认后端(`--interp` 回退)。
+- **结果**:见 `docs/bench/m5-bench.md`(fib 2.3×、fold 1.9× CPython,达成「同量级或更优」)。
 
-## 约束(本机事实)
+## 实施要点(记录备查)
 
-- 无 MSVC/LLVM 工具链;Rust 工具链为 `x86_64-pc-windows-gnu`,自带 `rust-lld` 链接器;
-- crates.io 网络可用;外部预编译库可通过 pip/下载获取(已有 Z3 先例);
-- 目标:M5 退出标准 = 「核心微基准与 CPython 同量级或更优」。
+1. 单遍编译器:栈槽分配 + Lua 式上值链(Local/ParentUpvalue/SelfRef);
+2. 契约编译为内联字节码(:pre 入口 / :post 返回前 / :invariant 构造处,JumpIfTrue 跳过 Raise*);
+3. 高阶内建 filter/map/fold 编译为原生 HOF 指令(谓词闭包 VM 内联执行,避免解释器回退——初版回退实测慢 15 倍);
+4. 内建查表:编译期内建名表 + 函数指针表对齐,运行时零 HashMap;
+5. 跳转补丁偏移以「下一条指令」为基准(修过一个 2 字节错位 bug);
+6. 调用时按 nslots 预留槽区(StoreLocal 需要已存在的槽)。
 
-## 候选方案
+## 后续候选(M5.5+,按需评估)
 
-| 方案 | 原理 | 优点 | 缺点/风险 | 本机可行性 |
-| :--- | :--- | :--- | :--- | :--- |
-| **A. 字节码 VM** | Aether → 栈式字节码 → Rust 解释循环 | 纯 Rust 零依赖;实现可控;寄存器缓存/超级指令等常规优化路径清晰 | 上限约为 C 的 1/5–1/20,仍远快于树遍历 | ✅ 完全可行 |
-| **B. Cranelift 原生后端** | Aether → Cranelift IR → 目标文件 → rust-lld 链接 | 纯 Rust crate;AOT 原生码,接近 C 级;无系统依赖 | 复杂度最高;windows-gnu 支持需验证;调试信息弱 | ✅ 大概率可行(crates.io) |
-| **C. C 转译** | Aether → C 源码 → C 编译器 | 简单直接、可读中间产物 | 本机无 C 编译器(需 winget 装 mingw) | ⚠️ 需装工具链 |
-| **D. LLVM(inkwell)** | Aether → LLVM IR | 成熟、优化最强 | 需下载 LLVM 发行包(~GB 级)并配 env;构建复杂 | ⚠️ 重 |
+- 寄存器式直接线程化 + 值内联(进一步缩小与 CPython 的 2× 差距);
+- Cranelift 原生后端(ADR-0002 分析中的方案 B,windows-gnu 可行性 spike 先行)。
 
-## 初步建议(待门禁确认)
-
-**M5 主线选 A(字节码 VM),达成退出标准后再评估 B 作为 M5.5/M6 增强。**
-
-理由:
-1. 退出标准是「与 CPython 同量级或更优」——字节码 VM 的常规优化(直接线程化、i64/f64 快速路径、环境槽位)足以达成且风险最低;
-2. 解释器语义已锁定,字节码编译是纯增量(不推翻 M2/M3);
-3. Cranelift 作为第二阶段(原生码)候选,先做一次 windows-gnu 可行性 spike 再决策;
-4. 静态验证(M3)与类型信息可为 VM 提供优化输入(如 Int 特化),这是 Aether 相对 CPython 的结构性优势。
-
-## 决策记录
-
-M5 WP5.1 将基于本分析与 spike 结果定稿并提请人类总监确认。

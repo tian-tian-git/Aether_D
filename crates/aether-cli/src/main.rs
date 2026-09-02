@@ -154,10 +154,14 @@ fn cmd_check(args: &[String]) -> ExitCode {
 }
 
 fn cmd_run(args: &[String]) -> ExitCode {
-    let Some(file) = args.first() else {
+    // M5 起默认字节码 VM;--interp 回退树遍历解释器
+    let use_interp = args.iter().any(|a| a == "--interp");
+    let files: Vec<&String> = args.iter().filter(|a| *a != "--interp" && *a != "--vm").collect();
+    let Some(file) = files.first() else {
         eprintln!("error: 'aether run' requires a file argument\n\n{}", usage());
         return ExitCode::from(2);
     };
+    let argv: Vec<String> = files.iter().skip(1).map(|s| s.to_string()).collect();
     let src = match read_source(file) {
         Ok(s) => s,
         Err(c) => return c,
@@ -171,7 +175,12 @@ fn cmd_run(args: &[String]) -> ExitCode {
         eprint!("{}", d.render(&src));
         return ExitCode::from(1);
     }
-    match Interp::new().run_program(&program, args[1..].to_vec()) {
+    let result = if use_interp {
+        Interp::new().run_program(&program, argv)
+    } else {
+        aether_vm::run(&program, argv)
+    };
+    match result {
         Ok(code) => ExitCode::from(code as u8),
         Err(d) => {
             eprint!("{}", d.render(&src));

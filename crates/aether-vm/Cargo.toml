@@ -1,14 +1,15 @@
 [package]
-name = "aether-cli"
+name = "aether-vm"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Aether 命令行入口(parse/check/run/repl)"
+description = "Aether 字节码 VM(M5)"
 
 [dependencies]
 aether-ast = { path = "../aether-ast" }
-aether-parser = { path = "../aether-parser" }
 aether-diagnostic = { path = "../aether-diagnostic" }
 aether-interp = { path = "../aether-interp" }
+
+[dev-dependencies]
+aether-parser = { path = "../aether-parser" }
 aether-verify = { path = "../aether-verify" }
-aether-vm = { path = "../aether-vm" }
