@@ -54,9 +54,13 @@ Aether_D/
 ```powershell
 cargo build --release
 cargo run -p aether-cli -- run examples/hello.ae                # 运行程序(输出 Hello, Aether!)
+cargo run -p aether-cli -- check examples/bounds.ae             # 类型检查 + Z3 静态契约验证(演示 E4001)
 cargo run -p aether-cli -- parse examples/sort.ae               # 解析并 dump AST
 cargo run -p aether-cli -- repl                                 # 交互式求值
-cargo test                                                      # 87 项测试
+cargo test                                                      # 112 项测试
+
+# M4 生成回路基准(本地 Ollama,模型 gemma3:4b):
+python tools/harness/harness.py --tasks fib,gcd    # 全量省略 --tasks
 ```
 
 ## 工作方式
