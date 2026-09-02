@@ -301,6 +301,45 @@ impl TypeChecker {
                 for a in args {
                     arg_types.push(self.check_expr(a, env, None)?);
                 }
+                // 0. 环境中的函数值(参数/局部闭包,如 all? 的 pred)
+                if let Some(bound) = env.get(name) {
+                    match self.resolve(&bound) {
+                        T::Fn(params, ret) => {
+                            if arg_types.len() != params.len() {
+                                return Err(Self::diag(
+                                    E3005,
+                                    format!("function '{}' takes {} argument(s), got {}", name, params.len(), arg_types.len()),
+                                    e.span,
+                                    Some(e.node_id),
+                                    "match the declared parameter count",
+                                ));
+                            }
+                            for (a, p) in arg_types.iter().zip(&params) {
+                                let _ = self.unify(a.clone(), p.clone(), e.span, Some(e.node_id), &format!("argument of '{}'", name))?;
+                            }
+                            return Ok(*ret);
+                        }
+                        T::Var(_) => {
+                            return Err(Self::diag(
+                                E3001,
+                                format!("cannot call '{}': its type is not determined", name),
+                                e.span,
+                                Some(e.node_id),
+                                "annotate the binding with a (Fn ...) type",
+                            ));
+                        }
+                        other => {
+                            return Err(Self::diag(
+                                E3001,
+                                format!("'{}' is bound to {}, not a function", name, self.display(&other)),
+                                e.span,
+                                Some(e.node_id),
+                                "call only function values",
+                            ));
+                        }
+                    }
+                }
+                // 1. 模块级函数
                 let r = if let Some((params, ret)) = self.fns.get(name).cloned() {
                     if arg_types.len() != params.len() {
                         return Err(Self::diag(

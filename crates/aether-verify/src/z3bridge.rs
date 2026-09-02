@@ -40,7 +40,13 @@ pub fn verify_program(api: &Z3Api, program: &Program) -> Vec<Diagnostic> {
 enum SV {
     Int(*mut crate::z3ffi::Z3_ast),
     Bool(*mut crate::z3ffi::Z3_ast),
-    Vec { arr: *mut crate::z3ffi::Z3_ast, len: *mut crate::z3ffi::Z3_ast },
+    Vec {
+        arr: *mut crate::z3ffi::Z3_ast,
+        len: *mut crate::z3ffi::Z3_ast,
+        /// 长度是否可信(精确)。用户函数返回的新鲜 Vec 长度未知:
+        /// 对其做越界检查会产生误报,故跳过(04-contracts 无假阳性承诺)。
+        len_known: bool,
+    },
 }
 
 struct Verifier<'a> {
@@ -169,6 +175,8 @@ impl<'a> Verifier<'a> {
                 Some(SV::Vec {
                     arr: self.mk_const(&arr_name, arr_sort),
                     len: self.mk_const(&len_name, int_sort),
+                    // 参数是「有约束的自由变量」:对其做越界检查是健全的(真阳性)
+                    len_known: true,
                 })
             }
             _ => None, // 不支持的类型:跳过静态
@@ -309,7 +317,7 @@ impl<'a> Verifier<'a> {
                     let idx = self.int_lit(i as i64);
                     arr = unsafe { (self.api.Z3_mk_store)(self.ctx, arr, idx, *v) };
                 }
-                Some(SV::Vec { arr, len: self.int_lit(n as i64) })
+                Some(SV::Vec { arr, len: self.int_lit(n as i64), len_known: true })
             }
             ExprKind::Let(l) => {
                 let v = self.translate(&l.value, env);
@@ -372,7 +380,11 @@ impl<'a> Verifier<'a> {
                 }
             }
             // 返回值:按声明类型生成新鲜符号值,并假设 :post
-            let ret_sv = self.sv_type(&f.ret_ty, &format!("ret_{}", name));
+            let mut ret_sv = self.sv_type(&f.ret_ty, &format!("ret_{}", name));
+            // 用户函数返回的 Vec:长度未建模(实际由函数行为决定)→ 跳过其越界检查(防误报)
+            if let Some(SV::Vec { len_known, .. }) = ret_sv.as_mut() {
+                *len_known = false;
+            }
             if let (Some(ret_sv), Some(_)) = (&ret_sv, all_some.then_some(())) {
                 for c in f.contracts.iter().filter(|c| c.kind == ContractKind::Post) {
                     let mut post_env = HashMap::new();
@@ -498,23 +510,26 @@ impl<'a> Verifier<'a> {
                     if svs.len() != 2 {
                         return None;
                     }
-                    let (SV::Vec { arr, len }, SV::Int(idx)) = (&svs[0], &svs[1]) else { return None };
-                    // 越界安全检查:sat(¬(0<=idx<len)) → 静态证实可越界
-                    let zero = self.int_lit(0);
-                    let lower = (self.api.Z3_mk_ge)(self.ctx, *idx, zero);
-                    let upper = (self.api.Z3_mk_lt)(self.ctx, *idx, *len);
-                    let in_bounds = (self.api.Z3_mk_and)(self.ctx, 2, [lower, upper].as_ptr());
-                    let n_in = self.not(in_bounds);
-                    let (sat, model) = self.check_sat(n_in);
-                    if sat {
-                        self.diagnostics.push(Self::violation(
-                            E5004,
-                            format!("index out of bounds is statically reachable ({})", Self::model_note(&model)),
-                            call_expr,
-                            "guard the index with 0 <= i < (len xs) before (get xs i)",
-                        ));
+                    let (SV::Vec { arr, len, len_known }, SV::Int(idx)) = (&svs[0], &svs[1]) else { return None };
+                    // 长度未知的 Vec(用户函数返回值):越界检查会产生误报 → 跳过(无假阳性承诺)
+                    if *len_known {
+                        // 越界安全检查:sat(¬(0<=idx<len)) → 静态证实可越界
+                        let zero = self.int_lit(0);
+                        let lower = (self.api.Z3_mk_ge)(self.ctx, *idx, zero);
+                        let upper = (self.api.Z3_mk_lt)(self.ctx, *idx, *len);
+                        let in_bounds = (self.api.Z3_mk_and)(self.ctx, 2, [lower, upper].as_ptr());
+                        let n_in = self.not(in_bounds);
+                        let (sat, model) = self.check_sat(n_in);
+                        if sat {
+                            self.diagnostics.push(Self::violation(
+                                E5004,
+                                format!("index out of bounds is statically reachable ({})", Self::model_note(&model)),
+                                call_expr,
+                                "guard the index with 0 <= i < (len xs) before (get xs i)",
+                            ));
+                        }
+                        self.assert_ast(in_bounds); // 假设安全继续
                     }
-                    self.assert_ast(in_bounds); // 假设安全继续
                     let sel = (self.api.Z3_mk_select)(self.ctx, *arr, *idx);
                     Some(SV::Int(sel))
                 }
@@ -526,27 +541,29 @@ impl<'a> Verifier<'a> {
                     if svs.len() != 2 {
                         return None;
                     }
-                    let (SV::Vec { arr, len }, SV::Int(v)) = (&svs[0], &svs[1]) else { return None };
+                    let (SV::Vec { arr, len, len_known }, SV::Int(v)) = (&svs[0], &svs[1]) else { return None };
                     let arr2 = (self.api.Z3_mk_store)(self.ctx, *arr, *len, *v);
                     let one = self.int_lit(1);
                     let len2 = (self.api.Z3_mk_add)(self.ctx, 2, [*len, one].as_ptr());
-                    Some(SV::Vec { arr: arr2, len: len2 })
+                    Some(SV::Vec { arr: arr2, len: len2, len_known: *len_known })
                 }
                 "head" => {
-                    let SV::Vec { arr, len } = &svs[0] else { return None };
+                    let SV::Vec { arr, len, len_known } = &svs[0] else { return None };
                     let zero = self.int_lit(0);
-                    let nonempty = (self.api.Z3_mk_gt)(self.ctx, *len, zero);
-                    let n_ne = self.not(nonempty);
-                    let (sat, model) = self.check_sat(n_ne);
-                    if sat {
-                        self.diagnostics.push(Self::violation(
-                            E5004,
-                            format!("'head' on an empty Vec is statically reachable ({})", Self::model_note(&model)),
-                            call_expr,
-                            "guard with (empty? xs) before (head xs)",
-                        ));
+                    if *len_known {
+                        let nonempty = (self.api.Z3_mk_gt)(self.ctx, *len, zero);
+                        let n_ne = self.not(nonempty);
+                        let (sat, model) = self.check_sat(n_ne);
+                        if sat {
+                            self.diagnostics.push(Self::violation(
+                                E5004,
+                                format!("'head' on an empty Vec is statically reachable ({})", Self::model_note(&model)),
+                                call_expr,
+                                "guard with (empty? xs) before (head xs)",
+                            ));
+                        }
+                        self.assert_ast(nonempty);
                     }
-                    self.assert_ast(nonempty);
                     let sel = (self.api.Z3_mk_select)(self.ctx, *arr, zero);
                     Some(SV::Int(sel))
                 }
@@ -569,7 +586,7 @@ impl<'a> Verifier<'a> {
                         let idx = self.int_lit(i as i64);
                         arr = (self.api.Z3_mk_store)(self.ctx, arr, idx, *v);
                     }
-                    Some(SV::Vec { arr, len: self.int_lit(n as i64) })
+                    Some(SV::Vec { arr, len: self.int_lit(n as i64), len_known: true })
                 }
                 "range" => {
                     if svs.len() != 2 {
@@ -588,7 +605,7 @@ impl<'a> Verifier<'a> {
                     let arr_sort = (self.api.Z3_mk_array_sort)(self.ctx, self.int_sort(), self.int_sort());
                     let name = self.fresh_name("range");
                     let arr = self.mk_const(&name, arr_sort);
-                    Some(SV::Vec { arr, len })
+                    Some(SV::Vec { arr, len, len_known: true })
                 }
                 "out" | "err-out" => Some(SV::Bool((self.api.Z3_mk_true)(self.ctx))), // 效果:占位,无断言
                 _ => None,

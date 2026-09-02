@@ -94,6 +94,14 @@ impl Parser {
             let name = self.expect_ident("module name")?;
             let items = self.parse_items()?;
             let close = self.expect_rparen(&open)?;
+            // 模块形式之后不允许残留内容(静默丢弃是对 AI 的陷阱)
+            if !self.at_eof() {
+                return Err(self.err_here(
+                    E2001,
+                    "unexpected content after the module form".to_string(),
+                    "v0.1 只允许单个顶层 module;把内容移入 module 内",
+                ));
+            }
             Module {
                 name: Some(name),
                 items,
