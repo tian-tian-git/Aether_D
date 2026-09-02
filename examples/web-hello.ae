@@ -1,0 +1,42 @@
+;; Aether 网页生成 demo —— 程序由 Aether 编译器编译执行,输出一个 HTML 网页。
+;;
+;; 演示命令:
+;;   aether check examples/web-hello.ae          # 类型检查 + Z3 静态契约验证
+;;   aether run examples/web-hello.ae > web.html # 编译执行,输出网页
+;;
+;; 页面的标题来自运行期计算(fib),证明网页是「编译 + 执行」的产物,不是写死的文本。
+
+(module web-hello
+
+  ;; HTML 标签包装器:内容拼进开闭标签之间
+  (fn tag (name Str) (content Str) -> Str
+    (concat "<" name ">" content "</" name ">"))
+
+  ;; 斐波那契(页面上会展示它的运行期结果)
+  (fn fib (n Int) -> Int
+    :pre (>= n 0)
+    (if (< n 2) n (+ (fib (- n 1)) (fib (- n 2)))))
+
+  ;; 拼装完整页面
+  (fn page (title Str) (body Str) -> Str
+    (concat "<!DOCTYPE html>" "\n"
+            "<html lang='zh'>" "\n"
+            "<head><meta charset='utf-8'>" "<title>" title "</title>"
+            "<style>body{font-family:sans-serif;max-width:40em;margin:4em auto;line-height:1.7}"
+            "h1{color:#2b6cb0}code{background:#eef;padding:.2em .4em;border-radius:4px}</style></head>" "\n"
+            "<body>" body "</body>" "\n"
+            "</html>" "\n"))
+
+  (fn main () -> () !
+    (out (page
+      "Aether 编译出的网页"
+      (concat
+        (tag "h1" "Hello, World!")
+        (tag "p" "这个页面不是写死的文本:它由 Aether 程序编译为字节码后执行生成。")
+        (tag "p" (concat "页面上的这个数字是刚才运行时算出来的 —— fib(20) = "
+                         (int->str (fib 20))
+                         "(带 :pre (>= n 0) 契约,并通过了 Z3 静态验证)。"))
+        (tag "p" (concat "生成管线:"
+                         "<code>aether parse</code> → "
+                         "<code>aether check</code>(类型 + 静态契约)→ "
+                         "<code>字节码 VM</code> → 本页面")))))))
