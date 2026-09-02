@@ -23,7 +23,7 @@
 | 整数字面量 | `-?[0-9]+` 或 `-?0x[0-9a-fA-F]+` | `42`、`-7`、`0xFF` |
 | 浮点字面量 | `-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?`(整数部分与小数部分均不可省略) | `3.14`、`-0.5`、`1e3` 不合法,写 `1.0e3` |
 | 字符串字面量 | `"..."`,转义仅 `\\` `\"` `\n` `\t` `\r` `\u{XXXX}`;字面换行非法 | `"hi\n"` |
-| 标识符 | `[A-Za-z_+\-*/<>=!?.][A-Za-z0-9_+\-*/<>=!?.]*`(允许运算符字符与 `-`/`?`/`.`,故 `+`、`finite?`、kebab-case 均为合法标识符) | `qsort`、`<=`、`get-user-name` |
+| 标识符 | `[A-Za-z_+\-*/%<>=!?.][A-Za-z0-9_+\-*/%<>=!?.]*`(允许运算符字符与 `-`/`?`/`.`/`%`,故 `+`、`%`、`finite?`、kebab-case 均为合法标识符) | `qsort`、`<=`、`get-user-name` |
 
 **词法歧义消解**(固定规则,无回溯猜测):
 
@@ -35,7 +35,7 @@
 
 ### 2.2 保留字
 
-作为**特殊形式头**的标识符:`module` `fn` `let` `struct` `if` `block` `vec` `map` `quote`。
+作为**特殊形式头**的标识符:`module` `fn` `let` `struct` `if` `block` `vec` `map-of` `quote`。
 作为**字面量**的标识符:`true` `false`。
 其余标识符一律按函数/变量名处理——**没有关键字污染**:`(let fn Int 1)` 合法(但不建议,见 02 命名约定)。
 
@@ -69,7 +69,7 @@ expr      := INT | FLOAT | STR | true | false
           |  (if expr expr expr)               ;; else 必填,不提供省略形式
           |  (block expr*)                     ;; 值 = 末表达式;空 block = ()
           |  (vec expr*)                       ;; 向量字面量
-          |  (map (expr expr)*)                ;; 映射字面量,键值成对
+          |  (map-of (expr expr)*)             ;; 映射字面量,键值成对(map 为内建函数名,勿混)
           |  (let IDENT TYPE expr)             ;; let 作为表达式:值为初值,绑定作用于所在作用域后续(02 §3)
           |  (fn IDENT? param* "->" TYPE fx? contract* body)  ;; 具名/匿名函数(匿名=省略 IDENT)
           |  (IDENT expr*)                     ;; 调用 / 结构体构造 / 内建函数
@@ -80,6 +80,7 @@ body      := expr
 
 | 形式 | 元数 | 说明 |
 | :--- | :--- | :--- |
+| 裸 `none` | — | 等价于 `(none)`;零元值构造器(与 06-std §0 值规范表示对齐) |
 | `(module name form*)` | ≥1 | 文件名应等于模块名(`sort.ae` → `(module sort ...)`);约定而非强制,解析器不校验;嵌套 `module` 在 v0.1 非法(E2xxx),为未来命名空间预留 |
 | `(fn name params -> type [fx] [contracts] body)` | 见文法 | 具名函数;fx `!` 表示显式效果标记(首版解析保留、不检查);契约顺序任意但建议 `:pre` → `:post` |
 | `(fn params -> type [fx] [contracts] body)` | 匿名 | 首元素为 `(` 即匿名函数,作为值参与调用/传参 |
@@ -88,7 +89,7 @@ body      := expr
 | `(if cond then else)` | 3 | else **必填**;无单臂形式(确定性优先) |
 | `(block expr*)` | 任意 | 顺序求值,值 = 末表达式;空 block 的值为 `()` |
 | `(vec expr*)` | 任意 | 向量字面量 |
-| `(map (k v)*)` | 偶数 | 每对键值为一个双元素形式 |
+| `(map-of (k v)*)` | 偶数 | 每对键值为一个双元素形式;`map` 是集合变换内建函数,与字面量 `map-of` 区分 |
 | `(quote expr)` | 1 | 不求值 expr,返回其 Ast 值(同像性的第一个落地能力) |
 | `(IDENT expr*)` | 任意 | 调用:实参从左到右严格求值 |
 

@@ -56,7 +56,7 @@ pub fn lex(src: &str) -> Result<Vec<Token>, LexError> {
 }
 
 fn is_ident_start(c: char) -> bool {
-    c.is_ascii_alphabetic() || matches!(c, '_' | '+' | '-' | '*' | '/' | '<' | '>' | '=' | '!' | '?' | '.')
+    c.is_ascii_alphabetic() || matches!(c, '_' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=' | '!' | '?' | '.')
 }
 
 fn is_ident_continue(c: char) -> bool {

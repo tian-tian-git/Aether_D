@@ -7,5 +7,5 @@
     :invariant (and (finite? x) (finite? y)))
 
   (fn dist (p Point) -> Float
-    (sqrt (+ (* (. p x) (. p x))
-             (* (. p y) (. p y))))))
+    (sqrt (+ (* (. p "x") (. p "x"))
+             (* (. p "y") (. p "y"))))))

@@ -10,6 +10,8 @@
 //! 节点编号 `NodeId` 由解析器按模块内全局自增分配;诊断、指标与(远期)图补丁
 //! 均以它为锚点。
 
+pub mod printer;
+
 /// 语言名与规范版本(供 CLI 与诊断使用)。
 pub const LANGUAGE_NAME: &str = "aether";
 pub const SPEC_VERSION: &str = "0.1.0-draft";
@@ -196,7 +198,7 @@ pub enum ExprKind {
     Block(Vec<Expr>),
     /// `(vec expr*)`。
     VecLit(Vec<Expr>),
-    /// `(map (k v)*)`。
+    /// `(map-of (k v)*)`。
     MapLit(Vec<(Expr, Expr)>),
     /// 匿名/具名函数表达式。
     Fn(FnDef),

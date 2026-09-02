@@ -204,7 +204,7 @@ impl Parser {
                 self.bump();
                 Ok(Form::Expr(self.parse_vec_lit(open)?))
             }
-            "map" => {
+            "map-of" => {
                 self.bump();
                 Ok(Form::Expr(self.parse_map_lit(open)?))
             }
@@ -386,8 +386,8 @@ impl Parser {
         let mut pairs = Vec::new();
         while !self.at_eof() && !matches!(self.peek().kind, TokenKind::RParen) {
             let k_open = self.expect_lparen()?;
-            let key = self.parse_expr_required("map", "pairs of the form (key value)")?;
-            let value = self.parse_expr_required("map", "pairs of the form (key value)")?;
+            let key = self.parse_expr_required("map-of", "pairs of the form (key value)")?;
+            let value = self.parse_expr_required("map-of", "pairs of the form (key value)")?;
             self.expect_rparen(&k_open)?;
             pairs.push((key, value));
         }
@@ -445,6 +445,8 @@ impl Parser {
                 let kind = match name.as_str() {
                     "true" => ExprKind::Bool(true),
                     "false" => ExprKind::Bool(false),
+                    // 裸 none 等价于 (none):零元值构造器(与值规范表示 round-trip)
+                    "none" => ExprKind::Call { name: "none".to_string(), args: vec![] },
                     _ => ExprKind::Var(name),
                 };
                 Ok(Expr { node_id: self.alloc(), kind, span })

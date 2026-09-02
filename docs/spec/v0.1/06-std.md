@@ -6,7 +6,7 @@
 
 ## 0. 值规范表示(canonical form)
 
-`out`/`err` 与打印器(WP1.4)共用同一套规范表示;任何值都有唯一的规范文本,且该文本可被解析器回读(round-trip):
+`out`/`err-out` 与打印器(WP1.4)共用同一套规范表示;任何**数据值**(Int/Float/Bool/Str/Vec/Map/Struct/Option/Result/Ast)都有唯一的规范文本,且该文本可被解析器回读(round-trip);`Unit`(`()`)、`Fn`(`<fn name>`/`<lambda>`)为显示形式,不作回读承诺:
 
 | 值 | 规范表示 | 示例 |
 | :--- | :--- | :--- |
@@ -15,7 +15,7 @@
 | `Bool` | `true` / `false` | — |
 | `Str` | 带引号 + 转义(`\n` `\t` `\r` `\\` `\"` 及 `\u{...}`) | `"hi\n"` |
 | `Vec` | `(vec e1 e2 ...)` | `(vec 1 2 3)` |
-| `Map` | `(map (k v) ...)`,键值按键排序输出 | `(map ("a" 1))` |
+| `Map` | `(map-of (k v) ...)`,键值按键排序输出 | `(map-of ("a" 1))` |
 | `Struct` | `(Name f1 f2 ...)`(按字段声明序) | `(Point 1.0 2.0)` |
 | `Fn` | `<fn name>` / `<lambda>` | — |
 | `Option` | `(some x)` / `none` | — |
@@ -70,7 +70,7 @@
 | `filter` | 2 | `(filter pred xs)`,pred 为 `(Fn T -> Bool)` |
 | `map` | 2 | `(map f xs)` → 逐元素变换的新 Vec |
 | `fold` | 3 | `(fold f init xs)` → 左折叠 |
-| `range` | 2 | `(range lo hi)` → `[lo, hi)` 整数升序 Vec(lo>hi 为空) |
+| `range` | 2 | `(range lo hi)` → `[lo, hi)` 整数升序 Vec(lo>hi 为空);规模上限 1_000_000(E5014,资源守卫) |
 | `has?` | 2 | Map 是否含键 |
 | `keys` | 1 | Map 的键列表(排序后返回,保证确定性) |
 | `put` | 3 | `(put m k v)` → 含该键值对的新 Map |
@@ -96,7 +96,7 @@
 | 内建 | 元数 | 语义 |
 | :--- | :--- | :--- |
 | `out` | 1 | stdout 写一行(Str 裸输出,其余规范表示),返回 `()` |
-| `err` | 1 | 同 `out` 但写 stderr |
+| `err-out` | 1 | 同 `out` 但写 stderr(与 Result 构造器 `err` 区分) |
 
 v0.1 无文件/网络/输入能力。
 

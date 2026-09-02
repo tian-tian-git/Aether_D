@@ -45,15 +45,18 @@ Aether_D/
 ## 当前状态
 
 - **M0 立项与框架** ✅
-- **M1 语法与解析** ✅(spec 候选冻结稿 + 词法/解析/打印/诊断/CLI 全部就绪,待人类总监门禁确认)—— 详见 [docs/roadmap.md](docs/roadmap.md)
+- **M1 语法与解析** ✅(词法/解析/打印/诊断/CLI,87 项测试)
+- **M2 解释器 MVP** ✅(`aether run` 可执行程序、REPL、26 项 golden/错误路径测试、性能基线)—— 详见 [docs/roadmap.md](docs/roadmap.md)
+- **M3 类型与契约验证** 待开始
 
 ## 快速开始
 
 ```powershell
-cargo build
-cargo run -p aether-cli -- parse examples/hello.ae          # 解析并 dump AST
-cargo run -p aether-cli -- parse 你的文件.ae --json          # 结构化诊断 JSON(供 AI 生成回路)
-cargo test                                                   # 57 项测试
+cargo build --release
+cargo run -p aether-cli -- run examples/hello.ae                # 运行程序(输出 Hello, Aether!)
+cargo run -p aether-cli -- parse examples/sort.ae               # 解析并 dump AST
+cargo run -p aether-cli -- repl                                 # 交互式求值
+cargo test                                                      # 87 项测试
 ```
 
 ## 工作方式
