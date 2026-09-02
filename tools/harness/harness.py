@@ -28,6 +28,20 @@ TMP = ROOT / "target" / "harness-tmp"
 MODEL = "gemma3:4b"
 MAX_ROUNDS = 3
 
+
+def _argv_opt(name: str, default: str):
+    if name in sys.argv:
+        i = sys.argv.index(name)
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return default
+
+
+def _apply_argv() -> None:
+    global MODEL, MAX_ROUNDS
+    MODEL = _argv_opt("--model", MODEL)
+    MAX_ROUNDS = int(_argv_opt("--rounds", str(MAX_ROUNDS)))
+
 # 函数名映射(kebab → 各自语言)
 AETHER_FN = {"triangle": "is-triangle", "celsius": "celsius-to-f", "sorted-insert": "insert", "binary-search": "bsearch"}
 PY_FN = {
@@ -231,6 +245,7 @@ def run_one(task, lang: str) -> dict:
 
 
 def main() -> int:
+    _apply_argv()
     task_filter = None
     if "--tasks" in sys.argv:
         i = sys.argv.index("--tasks")
@@ -266,8 +281,7 @@ def write_report(results: list) -> None:
 
     lines = ["# M4 AI 生成回路:基准报告\n",
              f"> 模型:本地 Ollama `{MODEL}`(temperature 0.2);修补轮数上限 {MAX_ROUNDS};"
-             "每任务每语言独立会话。\n",
-             "> Aether 验证链:parse → typecheck + Z3 静态契约 → 测试运行;"
+             "每任务每语言独立会话。\n",             "> Aether 验证链:parse → typecheck + Z3 静态契约 → 测试运行;"
              "Python 验证链:py_compile(隐式)→ 测试运行。反馈均为结构化诊断(非原始堆栈)。\n"]
     lines.append("\n## 指标汇总\n")
     lines.append("| 指标 | Aether | Python |\n|---|---|---|\n")
