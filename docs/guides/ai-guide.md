@@ -137,7 +137,7 @@ Z3 静态验证覆盖:`Int`/`Bool`/`(Vec Int)` + 算术/比较/布尔/`get`/`len
 ## 7. 维护语言本身(AI 版工作流)
 
 1. **开工先读** [AGENTS.md](../../AGENTS.md) 与本指南,认领 [roadmap](../../roadmap.md) 工作包;
-2. **文件边界即任务边界**:不同智能体不得同时编辑同一文件;不动 `D:\Desktop\programme\ai-lp\Aether_K`;
+2. **文件边界即任务边界**:不同智能体不得同时编辑同一文件;
 3. **crate 地图**:`aether-ast`(数据模型)→ `aether-diagnostic`/`aether-parser` → `aether-verify`(类型+Z3)/`aether-interp`(树遍历)/`aether-vm`(字节码)→ `aether-cli`;依赖单向;
 4. **变更顺序**:先改 `docs/spec/v0.1/`,再改实现,同步提交;架构取舍写 ADR;新错误码先登记 `05-diagnostics.md`;
 5. **双后端纪律**:语义变更必须同时过 `aether-interp` 与 `aether-vm` 测试(`cargo test`,18 套件 144 项,全部绿才能交付);

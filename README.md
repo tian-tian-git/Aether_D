@@ -86,10 +86,6 @@ python tools/harness/harness.py --corpus lib/aether-std.ae     # 静态蒸馏模
 - **AI**(生成者 / 维护者):读 [docs/guides/ai-guide.md](docs/guides/ai-guide.md)
 - 所有参与本项目的 AI 智能体,开工前必读 [AGENTS.md](AGENTS.md)。
 
-## 硬规则
-
-> **绝对禁止对 `D:\Desktop\programme\ai-lp\Aether_K` 进行任何读取 / 修改 / 执行操作。** 一切工作仅在 `Aether_D` 内进行。
-
 ## 背景文献
 
 原始设计对话与调研:[AI跨语言设计.txt](./AI跨语言设计.txt)(只读档案,勿修改)。
