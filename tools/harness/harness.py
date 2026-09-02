@@ -28,6 +28,7 @@ AETHER = ROOT / "target" / "release" / "aether-cli.exe"
 TMP = ROOT / "target" / f"harness-tmp-{os.getpid()}"
 MODEL = "gemma3:4b"
 MAX_ROUNDS = 3
+CORPUS = ""
 
 
 def _argv_opt(name: str, default: str):
@@ -39,9 +40,12 @@ def _argv_opt(name: str, default: str):
 
 
 def _apply_argv() -> None:
-    global MODEL, MAX_ROUNDS
+    global MODEL, MAX_ROUNDS, CORPUS
     MODEL = _argv_opt("--model", MODEL)
     MAX_ROUNDS = int(_argv_opt("--rounds", str(MAX_ROUNDS)))
+    corpus_path = _argv_opt("--corpus", "")
+    if corpus_path:
+        CORPUS = Path(corpus_path).read_text(encoding="utf-8")
 
 # 函数名映射(kebab → 各自语言)
 AETHER_FN = {"triangle": "is-triangle", "celsius": "celsius-to-f", "sorted-insert": "insert", "binary-search": "bsearch"}
@@ -200,6 +204,12 @@ def run_one(task, lang: str) -> dict:
     if lang == "aether":
         fn = AETHER_FN.get(tid, tid)
         sys_prompt = AETHER_SYS
+        if CORPUS:
+            # 静态蒸馏:把已验证的 Aether 片段语料注入系统提示
+            sys_prompt += (
+                "\n\nVERIFIED AETHER SNIPPET CORPUS (distilled from a Z3-verified standard library — "
+                "study and reuse these exact patterns):\n" + CORPUS + "\nEND OF CORPUS.\n"
+            )
         name_line = f"\nRequired function name: {fn}\n"
         validate = lambda c: aether_validate(c, fn, task["cases"])
     else:
