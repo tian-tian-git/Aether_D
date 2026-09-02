@@ -200,6 +200,8 @@ pub enum ExprKind {
     MapLit(Vec<(Expr, Expr)>),
     /// 匿名/具名函数表达式。
     Fn(FnDef),
+    /// `(let name type value)` 作为表达式:值为初值,绑定作用于所在作用域后续(02-semantics §3)。
+    Let(LetDef),
     /// 调用 / 结构体构造 / 内建函数,头为标识符。
     Call { name: String, args: Vec<Expr> },
 }

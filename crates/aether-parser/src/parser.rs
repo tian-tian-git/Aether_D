@@ -181,15 +181,16 @@ impl Parser {
                 Ok(Form::Struct(self.parse_struct(open)?))
             }
             "let" => {
-                if !allow_items {
-                    return Err(self.err_here(
-                        E2005,
-                        "let binding is not allowed in expression position".to_string(),
-                        "wrap it in a (block ...) or move it to the module level",
-                    ));
-                }
                 self.bump();
-                Ok(Form::Let(self.parse_let(open)?))
+                let l = self.parse_let(open)?;
+                if allow_items {
+                    Ok(Form::Let(l))
+                } else {
+                    // let 作为表达式(02-semantics §3:值为初值,绑定作用于所在块后续)
+                    let node_id = l.node_id;
+                    let span = l.span;
+                    Ok(Form::Expr(Expr { node_id, kind: ExprKind::Let(l), span }))
+                }
             }
             "if" => {
                 self.bump();
@@ -454,7 +455,7 @@ impl Parser {
                     let span = f.span;
                     Ok(Expr { node_id: f.node_id, kind: ExprKind::Fn(f), span })
                 }
-                _ => unreachable!("expr 上下文中 struct/let/module 已被 parse_form 拒绝"),
+                _ => unreachable!("expr 上下文中 struct/module 已被 parse_form 拒绝"),
             },
             TokenKind::RParen => Err(self.err_here(
                 E2003,
@@ -797,6 +798,24 @@ mod tests {
     fn missing_type_is_e2007() {
         let e = parse_err("(let x 1)");
         assert_eq!(e.code, E2007);
+    }
+
+    #[test]
+    fn let_as_expression_in_block() {
+        let p = parse_ok("(fn f () -> Int (block (let x Int 1) (+ x 1)))");
+        match &p.module.items[0] {
+            Item::Fn(f) => match &*f.body {
+                Expr { kind: ExprKind::Block(exprs), .. } => {
+                    assert_eq!(exprs.len(), 2);
+                    match &exprs[0].kind {
+                        ExprKind::Let(l) => assert_eq!(l.name, "x"),
+                        other => panic!("expected let expr, got {:?}", other),
+                    }
+                }
+                other => panic!("expected block, got {:?}", other),
+            },
+            other => panic!("expected fn, got {:?}", other),
+        }
     }
 
     #[test]

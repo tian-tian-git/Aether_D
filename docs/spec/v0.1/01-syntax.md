@@ -70,6 +70,7 @@ expr      := INT | FLOAT | STR | true | false
           |  (block expr*)                     ;; 值 = 末表达式;空 block = ()
           |  (vec expr*)                       ;; 向量字面量
           |  (map (expr expr)*)                ;; 映射字面量,键值成对
+          |  (let IDENT TYPE expr)             ;; let 作为表达式:值为初值,绑定作用于所在作用域后续(02 §3)
           |  (fn IDENT? param* "->" TYPE fx? contract* body)  ;; 具名/匿名函数(匿名=省略 IDENT)
           |  (IDENT expr*)                     ;; 调用 / 结构体构造 / 内建函数
 body      := expr
@@ -83,7 +84,7 @@ body      := expr
 | `(fn name params -> type [fx] [contracts] body)` | 见文法 | 具名函数;fx `!` 表示显式效果标记(首版解析保留、不检查);契约顺序任意但建议 `:pre` → `:post` |
 | `(fn params -> type [fx] [contracts] body)` | 匿名 | 首元素为 `(` 即匿名函数,作为值参与调用/传参 |
 | `(struct Name fields [:invariant e]*)` | ≥1 | 定义结构体与构造器;`:invariant` 可多个 |
-| `(let IDENT TYPE expr)` | 3 | 绑定从声明点起在该作用域后续可见(见 02) |
+| `(let IDENT TYPE expr)` | 3 | **既是顶层项也是表达式**:表达式值为初值;绑定从声明点起在该作用域后续可见(见 02 §3) |
 | `(if cond then else)` | 3 | else **必填**;无单臂形式(确定性优先) |
 | `(block expr*)` | 任意 | 顺序求值,值 = 末表达式;空 block 的值为 `()` |
 | `(vec expr*)` | 任意 | 向量字面量 |

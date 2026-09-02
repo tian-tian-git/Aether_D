@@ -299,6 +299,14 @@ impl<'a> Lexer<'a> {
                 span: Span { start, end: self.pos() },
                 hint: "write e.g. 3.14 or 1.0e3".to_string(),
             })?;
+            if !value.is_finite() {
+                return Err(LexError {
+                    code: E1004,
+                    message: "float literal overflows the finite f64 range".to_string(),
+                    span: Span { start, end: self.pos() },
+                    hint: "use a smaller magnitude; infinities and NaN are not literals in v0.1".to_string(),
+                });
+            }
             Ok(TokenKind::Float(value))
         } else {
             let value: i64 = raw.parse().map_err(|_| LexError {
@@ -526,6 +534,11 @@ mod tests {
     fn int_overflow_is_e1004() {
         assert_eq!(err("9223372036854775808").code, E1004);
         assert_eq!(err("0x8000000000000000").code, E1004);
+    }
+
+    #[test]
+    fn non_finite_float_is_e1004() {
+        assert_eq!(err("1.0e999").code, E1004);
     }
 
     #[test]

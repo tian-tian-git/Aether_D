@@ -7,3 +7,5 @@ description = "Aether 命令行入口(parse/check/run/repl)"
 
 [dependencies]
 aether-ast = { path = "../aether-ast" }
+aether-parser = { path = "../aether-parser" }
+aether-diagnostic = { path = "../aether-diagnostic" }
