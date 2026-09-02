@@ -212,3 +212,70 @@ fn int_arithmetic_wraps() {
     let src = "(fn main () -> Int (+ 9223372036854775807 1))";
     assert_eq!(run_ok(src), i64::MIN as i32);
 }
+
+#[test]
+fn map_keys_put_roundtrip() {
+    let src = r#"(module t
+  (fn main () -> Int
+    (block
+      (let m1 (Map Str Int) (map-of ("a" 1)))
+      (let m2 (Map Str Int) (put m1 "b" 2))
+      (let ks (Vec Str) (keys m2))
+      (if (== (len ks) 2) (+ (get m2 "a") (get m2 "b")) 0))))"#;
+    assert_eq!(run_ok(src), 3);
+}
+
+#[test]
+fn string_concat_and_conversions() {
+    let src = r#"(module t
+  (fn main () -> Int
+    (block
+      (let s Str (concat "a" "b" "c"))
+      (let n Int (str->int "42"))
+      (let back Str (int->str 42))
+      (if (and (== s "abc") (== n 42) (== back "42") (== (str-len s) 3)) 0 1))))"#;
+    assert_eq!(run_ok(src), 0);
+}
+
+#[test]
+fn permutation_predicate() {
+    let src = r#"(module t
+  (fn main () -> Int
+    (if (and (permutation? (vec 1 2 3) (vec 3 2 1))
+             (not (permutation? (vec 1 2) (vec 1 3))))
+        0 1)))"#;
+    assert_eq!(run_ok(src), 0);
+}
+
+#[test]
+fn empty_range_and_negative_range() {
+    let src = r#"(module t
+  (fn main () -> Int
+    (if (and (== (len (range 5 5)) 0) (== (len (range 5 2)) 0)) 0 1)))"#;
+    assert_eq!(run_ok(src), 0);
+}
+
+#[test]
+fn nested_closures_chain() {
+    let src = r#"(module t
+  (fn make-mult (m Int) -> (Fn (Int) -> Int)
+    (fn (x Int) -> Int (* x m)))
+  (fn compose (f (Fn (Int) -> Int)) (g (Fn (Int) -> Int)) -> (Fn (Int) -> Int)
+    (fn (x Int) -> Int (f (g x))))
+  (fn main () -> Int
+    (block
+      (let double (Fn (Int) -> Int) (make-mult 2))
+      (let triple (Fn (Int) -> Int) (make-mult 3))
+      (let six-x (Fn (Int) -> Int) (compose double triple))
+      (six-x 10))))"#;
+    assert_eq!(run_ok(src), 60);
+}
+
+#[test]
+fn effects_are_explicitly_marked_but_not_enforced() {
+    // v0.1:! 标记仅解析保留;调用 out 不强制调用方标记
+    let src = r#"(module t
+  (fn say () -> () (out "hi"))
+  (fn main () -> Int (block (say) 0)))"#;
+    assert_eq!(run_ok(src), 0);
+}
