@@ -258,6 +258,7 @@ def run_one(task, lang: str) -> dict:
 def main() -> int:
     _apply_argv()
     report_out = _argv_opt("--report-out", "")
+    lang_filter = _argv_opt("--lang", "")  # 可选: aether | python,缺省双语言
     task_filter = None
     if "--tasks" in sys.argv:
         i = sys.argv.index("--tasks")
@@ -266,6 +267,8 @@ def main() -> int:
     tasks = [t for t in TASKS if task_filter is None or t["id"] in task_filter]
     for t in tasks:
         for lang in ("aether", "python"):
+            if lang_filter and lang != lang_filter:
+                continue
             print(f"[{t['id']}/{lang}] generating...", flush=True)
             try:
                 r = run_one(t, lang)
