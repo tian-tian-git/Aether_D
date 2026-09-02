@@ -1,0 +1,15 @@
+;; Aether v0.1 静态契约验证 demo(M3 WP3.5)
+;; 运行 `aether check examples/bounds.ae` 应输出 E4001:
+;; 在 main 的调用点,静态证实在 xs=[1,2,3] 时 i=5 违反 nth 的 :pre。
+;; 该文件故意不通过静态验证(演示用途)。
+
+(module bounds
+
+  (fn nth (xs (Vec Int)) (i Int) -> Int
+    :pre (and (>= i 0) (< i (len xs)))
+    (get xs i))
+
+  (fn main () -> Int
+    (block
+      (let xs (Vec Int) (vec 1 2 3))
+      (nth xs 5))))

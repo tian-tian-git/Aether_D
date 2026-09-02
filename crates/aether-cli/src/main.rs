@@ -102,12 +102,45 @@ fn cmd_check(args: &[String]) -> ExitCode {
     };
     match aether_verify::check_program(&program) {
         Ok(()) => {
-            if json {
-                println!("{}", "{\"ok\":true}");
-            } else {
-                println!("ok: type check passed");
+            // M3 起:类型检查后执行静态契约验证(Z3)
+            let verify_result = match aether_verify::try_load() {
+                Ok(api) => {
+                    let diags = aether_verify::verify_program(&api, &program);
+                    if diags.is_empty() {
+                        Ok(())
+                    } else {
+                        Err(diags)
+                    }
+                }
+                Err(reason) => {
+                    if json {
+                        println!("{}", format!("{{\"ok\":true,\"verify\":\"skipped\",\"reason\":\"{}\"}}", reason.replace('"', "'")));
+                        return ExitCode::SUCCESS;
+                    }
+                    println!("ok: type check passed (static contract verification skipped: {})", reason);
+                    return ExitCode::SUCCESS;
+                }
+            };
+            match verify_result {
+                Ok(()) => {
+                    if json {
+                        println!("{}", "{\"ok\":true,\"verify\":\"verified\"}");
+                    } else {
+                        println!("ok: type check passed; static contract verification: no provable violations");
+                    }
+                    ExitCode::SUCCESS
+                }
+                Err(diags) => {
+                    if json {
+                        println!("{}", aether_diagnostic::to_json_batch(&diags));
+                    } else {
+                        for d in &diags {
+                            eprint!("{}", d.render(&src));
+                        }
+                    }
+                    ExitCode::from(1)
+                }
             }
-            ExitCode::SUCCESS
         }
         Err(d) => {
             if json {
