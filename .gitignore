@@ -3,3 +3,5 @@ Cargo.lock.orig
 *.rs.bk
 .vscode/
 .idea/
+__pycache__/
+*.pyc
