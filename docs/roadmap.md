@@ -115,11 +115,13 @@
 
 ---
 
-## M6 自举与静态蒸馏 🟡(进行中)
+## M6 自举与静态蒸馏 ✅(完成)
 
 **目标**:证明「AI 用 Aether 改写 Aether」可行。
 
-**进度**:WP6.1 ✅(标准库 19 函数用 Aether 自身实现,`lib/aether-std.ae`,VM 运行 + Z3 静态验证零违反 + 6 项集成测试);WP6.2 图补丁/热更新 demo ⬜;WP6.3 静态蒸馏实验报告 ⬜。
+**全部工作包完成**:WP6.1 ✅(标准库 19 函数用 Aether 自身实现,`lib/aether-std.ae`,VM 运行 + Z3 零违反)/ WP6.2 ✅(图补丁/热更新 demo:`crates/aether-vm/examples/graph_patch.rs`)/ WP6.3 ✅(静态蒸馏实验:`docs/bench/m6-distillation.md`,M4 失败任务通过率 0→62.5%)。
+
+**退出标准达成**:自举 demo 可复现 ✅;热更新 demo 可复现 ✅;静态蒸馏可行性报告 ✅(结论:验证语料蒸馏是 M4 冷启动问题的正解)。
 
 **目标**:证明「AI 用 Aether 改写 Aether」可行。
 
