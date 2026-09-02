@@ -14,6 +14,7 @@
 """
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -24,7 +25,7 @@ from tasks import TASKS
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 AETHER = ROOT / "target" / "release" / "aether-cli.exe"
-TMP = ROOT / "target" / "harness-tmp"
+TMP = ROOT / "target" / f"harness-tmp-{os.getpid()}"
 MODEL = "gemma3:4b"
 MAX_ROUNDS = 3
 
@@ -246,6 +247,7 @@ def run_one(task, lang: str) -> dict:
 
 def main() -> int:
     _apply_argv()
+    report_out = _argv_opt("--report-out", "")
     task_filter = None
     if "--tasks" in sys.argv:
         i = sys.argv.index("--tasks")
@@ -265,11 +267,11 @@ def main() -> int:
             results.append(r)
             print(f"  -> rounds={r['rounds']} first_pass={r['first_pass']} final_pass={r['final_pass']} "
                   f"tokens={r['prompt_tokens']}/{r['completion_tokens']}", flush=True)
-    write_report(results)
+    write_report(results, report_out)
     return 0
 
 
-def write_report(results: list) -> None:
+def write_report(results: list, report_path: str = "") -> None:
     def stat(lang, key):
         vals = [r[key] for r in results if r["lang"] == lang and r["rounds"] > 0]
         return (sum(vals) / len(vals)) if vals else 0.0
@@ -304,7 +306,7 @@ def write_report(results: list) -> None:
         p_t = f"{p['prompt_tokens']}/{p['completion_tokens']}" if p else "-"
         lines.append(f"| {tid} | {a_s} | {p_s} | {a_t} | {p_t} |\n")
     lines.append("\n## 结论(自动生成,待主智能体解读)\n")
-    out = ROOT / "docs" / "bench" / "m4-report.md"
+    out = Path(report_path) if report_path else ROOT / "docs" / "bench" / "m4-report.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(lines), encoding="utf-8")
     print(f"report written: {out}")
