@@ -1,0 +1,71 @@
+;; 教师节快乐 —— 动态艺术字。
+;;
+;; 动画参数(逐字入场滑落、波浪相位、重力粒子轨迹、环绕)全部由 Aether 计算;
+;; 浏览器 JS 仅按帧把参数渲染成渐变发光艺术字与粒子。
+;;
+;; 运行:
+;;   aether check examples/teachers-day.ae
+;;   aether run  examples/teachers-day.ae > target/teachers.html
+
+(module teachers-day
+
+  (let P Int 16)
+  (let FRAMES Int 240)
+
+  ;; 三角波:0 → period/2 → 0
+  (fn tri (t Int) (period Int) -> Int
+    (block
+      (let p Int (% t period))
+      (let h Int (/ period 2))
+      (abs (- p h))))
+
+  ;; 第 i 个字在第 t 帧的纵向偏移(入场滑落 + 落地后波浪)
+  (fn char-y (t Int) (i Int) -> Int
+    (block
+      (let start Int (* i 10))
+      (let drop Int (- t start))
+      (let entrance Int (if (< drop 0) 80 (if (< drop 30) (* (- 30 drop) 2) 0)))
+      (let wave Int (if (< t 60) 0 (/ (tri (+ t (* i 30)) 90) 3)))
+      (+ entrance wave)))
+
+  ;; 粒子横坐标(均匀散布 + 水平摆动)
+  (fn px (t Int) (i Int) -> Int
+    (block
+      (let base Int (* i 40))
+      (let sway Int (- (tri (+ t (* i 7)) 60) 30))
+      (% (+ base sway) 640)))
+
+  ;; 粒子纵坐标(重力下落 + 环绕)
+  (fn py (t Int) (i Int) -> Int
+    (block
+      (let y Int (+ (* t (+ 2 (% i 3))) (/ (* t t) 8)))
+      (- (% y 460) 20)))
+
+  (fn chars-js (t Int) (s Str) (i Int) -> Str
+    (concat s (int->str (char-y t i)) ","))
+
+  (fn parts-js (t Int) (s Str) (i Int) -> Str
+    (concat s (int->str (px t i)) "," (int->str (py t i)) ","))
+
+  ;; 每帧:6 个字偏移 + 16 粒子坐标 + 帧号 = 39 个 Int
+  (fn frame-js (t Int) -> Str
+    (concat "["
+            (fold (fn (s Str) (i Int) -> Str (chars-js t s i)) "" (range 0 6))
+            (fold (fn (s Str) (i Int) -> Str (parts-js t s i)) "" (range 0 P))
+            (int->str t)
+            "],"))
+
+  (fn print-frames (n Int) -> Int
+    (fold (fn (acc Int) (t Int) -> Int (block (out (frame-js t)) (+ acc 1))) 0 (range 0 FRAMES)))
+
+  (fn main () -> () !
+    (block
+      (out "<!DOCTYPE html>")
+      (out "<html lang='zh'><head><meta charset='utf-8'><title>教师节快乐</title><style>body{background:#0d1b3a;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0;padding-top:16px;font-family:sans-serif;color:#cbd5e1}h1{font-size:16px;font-weight:400;color:#94a3b8;margin:0}canvas{border-radius:12px}</style></head>")
+      (out "<body><h1>Aether 编译执行 · 动态艺术字</h1><canvas id='c' width='720' height='480'></canvas><script>")
+      (out "const F=[];")
+      (let n Int (print-frames FRAMES))
+      (out "const cv=document.getElementById('c');const g=cv.getContext('2d');const chars=['教','师','节','快','乐','!'];let i=0;")
+      (out "function frame(){const f=F[i];if(!f)return;const gr=g.createLinearGradient(0,0,0,480);gr.addColorStop(0,'#1a0b2e');gr.addColorStop(1,'#0d1b3a');g.fillStyle=gr;g.fillRect(0,0,720,480);for(let k=0;k<16;k++){const x=f[6+k*2],y=f[7+k*2];const hue=(i*3+k*23)%360;g.fillStyle='hsla('+hue+',90%,70%,0.9)';g.shadowColor='hsla('+hue+',90%,60%,0.8)';g.shadowBlur=10;g.beginPath();g.arc(x,y,3,0,7);g.fill();}g.shadowBlur=0;g.textAlign='center';g.textBaseline='middle';for(let k=0;k<6;k++){const y=190-f[k];const hue=(i*4+k*30)%360;const gd=g.createLinearGradient(0,y-44,0,y+44);gd.addColorStop(0,'hsl('+hue+',95%,72%)');gd.addColorStop(1,'hsl('+((hue+60)%360)+',95%,52%)');g.fillStyle=gd;g.shadowColor='hsl('+hue+',95%,60%)';g.shadowBlur=18;g.font='bold 64px Georgia,serif';g.fillText(chars[k],100+k*88,y);}i++;if(i>=F.length)i=0;requestAnimationFrame(frame);}")
+      (out "requestAnimationFrame(frame);")
+      (out "</script></body></html>"))))
