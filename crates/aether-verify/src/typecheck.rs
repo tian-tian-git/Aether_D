@@ -454,6 +454,13 @@ impl TypeChecker {
                 let _ = self.unify(arg_types[0].clone(), T::Float, e.span, Some(e.node_id), "argument of 'sqrt'")?;
                 Ok(T::Float)
             }
+            "rand" => {
+                if arg_types.len() != 1 {
+                    return Err(arity(self, "1"));
+                }
+                let _ = self.unify(arg_types[0].clone(), T::Int, e.span, Some(e.node_id), "seed of 'rand'")?;
+                Ok(T::Int)
+            }
             "finite?" => {
                 if arg_types.len() != 1 {
                     return Err(arity(self, "1"));
@@ -752,6 +759,28 @@ impl TypeChecker {
                     return Err(arity(self, "1"));
                 }
                 let _ = self.unify(arg_types[0].clone(), T::Ast, e.span, Some(e.node_id), "argument of 'ast->str'")?;
+                Ok(T::Str)
+            }
+            "svg-text" => {
+                if arg_types.len() != 5 {
+                    return Err(arity(self, "5"));
+                }
+                for (i, a) in arg_types.iter().enumerate().take(3) {
+                    let _ = self.unify(a.clone(), T::Int, e.span, Some(e.node_id), &format!("argument {} of 'svg-text'", i + 1))?;
+                }
+                for (i, a) in arg_types.iter().enumerate().skip(3) {
+                    let _ = self.unify(a.clone(), T::Str, e.span, Some(e.node_id), &format!("argument {} of 'svg-text'", i + 1))?;
+                }
+                Ok(T::Str)
+            }
+            "svg-circle" => {
+                if arg_types.len() != 4 {
+                    return Err(arity(self, "4"));
+                }
+                for (i, a) in arg_types.iter().enumerate().take(3) {
+                    let _ = self.unify(a.clone(), T::Int, e.span, Some(e.node_id), &format!("argument {} of 'svg-circle'", i + 1))?;
+                }
+                let _ = self.unify(arg_types[3].clone(), T::Str, e.span, Some(e.node_id), "fill of 'svg-circle'")?;
                 Ok(T::Str)
             }
             _ => Err(Self::diag(E3003, format!("unknown function '{}'", name), e.span, Some(e.node_id), "define it or check the spelling")),

@@ -1,0 +1,62 @@
+;; SVG 矢量艺术字 —— 教师节快乐
+;;
+;; 构图全部由 Aether 计算:每字位置(波浪曲线)、字号递增、调色板循环、
+;; 装饰圆点(rand 确定性伪随机散布);输出标准 SVG 文件,浏览器直接打开。
+;; 这是「Aether 产出矢量艺术」的示范:JS/HTML 一行没有,纯文本产物。
+;;
+;; 运行:
+;;   aether check examples/svg-art.ae
+;;   aether run  examples/svg-art.ae > target/svg-art.svg
+
+(module svg-art
+
+  (let CHARS (Vec Str) (vec "教" "师" "节" "快" "乐" "!"))
+  (let PALETTE (Vec Str) (vec "#e53e3e" "#dd6b20" "#d69e2e" "#38a169" "#3182ce" "#805ad5"))
+
+  ;; 三角波:0 → period/2 → 0
+  (fn tri (t Int) (period Int) -> Int
+    (block
+      (let p Int (% t period))
+      (let h Int (/ period 2))
+      (abs (- p h))))
+
+  (fn char-x (i Int) -> Int
+    (+ 95 (* i 90)))
+
+  ;; 每个字落点不同,排成波浪弧线
+  (fn char-y (i Int) -> Int
+    (+ 150 (tri (+ i 2) 60)))
+
+  (fn char-size (i Int) -> Int
+    (+ 42 (* i 8)))
+
+  (fn char-color (i Int) -> Str
+    (get PALETTE (% i 6)))
+
+  (fn char-svg (i Int) -> Str
+    (svg-text (char-x i) (char-y i) (char-size i) (char-color i) (get CHARS i)))
+
+  ;; 装饰圆点:rand 确定性散布,形成"粉笔灰"背景
+  (fn dot-svg (i Int) -> Str
+    (block
+      (let s1 Int (rand (+ 7 (* i 13))))
+      (let s2 Int (rand (+ 99 (* i 29))))
+      (let cx Int (% s1 680))
+      (let cy Int (+ 40 (% s2 280)))
+      (let r Int (+ 3 (% i 9)))
+      (svg-circle cx cy r (get PALETTE (% (+ i 2) 6)))))
+
+  (fn chars-out (i Int) -> Int
+    (block (out (char-svg i)) (+ i 1)))
+
+  (fn dots-out (i Int) -> Int
+    (block (out (dot-svg i)) (+ i 1)))
+
+  (fn main () -> () !
+    (block
+      (out "<svg xmlns='http://www.w3.org/2000/svg' width='720' height='320' viewBox='0 0 720 320'>")
+      (out "<defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fdf2e9'/><stop offset='1' stop-color='#fae5d3'/></linearGradient></defs>")
+      (out "<rect width='720' height='320' fill='url(#bg)'/>")
+      (fold (fn (acc Int) (i Int) -> Int (chars-out i)) 0 (range 0 6))
+      (fold (fn (acc Int) (i Int) -> Int (dots-out i)) 0 (range 0 26))
+      (out "</svg>"))))

@@ -218,6 +218,17 @@ fn sqrt(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
     Ok(Value::Float(f.sqrt()))
 }
 
+/// 确定性伪随机(LCG,06-std §1):与 02-semantics 确定性承诺一致,纯函数。
+fn rand(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
+    if args.len() != 1 {
+        return Err(arity(node, "rand", args.len(), "1"));
+    }
+    let s = expect_int(node, "rand", &args[0])?;
+    // 与 Aether 表达式 (* s 1103515245)、(+ x 12345)、(% y 2^31) 的 i64 环绕语义逐位一致
+    let v = s.wrapping_mul(1103515245).wrapping_add(12345) % 2147483648;
+    Ok(Value::Int(v))
+}
+
 fn as_int(v: &Value) -> i64 {
     match v {
         Value::Int(i) => *i,
@@ -706,6 +717,62 @@ fn ast_to_str(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
 }
 
 // ---------------------------------------------------------------------------
+// SVG 输出(06-std §8.5)
+// ---------------------------------------------------------------------------
+
+/// XML 转义(仅对元素内容;属性值内部转义引号)。
+fn svg_escape(s: &str) -> String {
+    let mut out = String::new();
+    for c in s.chars() {
+        match c {
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '&' => out.push_str("&amp;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&apos;"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
+fn svg_text(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
+    if args.len() != 5 {
+        return Err(arity(node, "svg-text", args.len(), "5"));
+    }
+    let x = expect_int(node, "svg-text", &args[0])?;
+    let y = expect_int(node, "svg-text", &args[1])?;
+    let size = expect_int(node, "svg-text", &args[2])?;
+    let fill = expect_str(node, "svg-text", &args[3])?;
+    let s = expect_str(node, "svg-text", &args[4])?;
+    Ok(Value::Str(format!(
+        "<text x='{}' y='{}' font-size='{}' fill='{}'>{}</text>",
+        x,
+        y,
+        size,
+        svg_escape(fill),
+        svg_escape(s)
+    )))
+}
+
+fn svg_circle(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
+    if args.len() != 4 {
+        return Err(arity(node, "svg-circle", args.len(), "4"));
+    }
+    let cx = expect_int(node, "svg-circle", &args[0])?;
+    let cy = expect_int(node, "svg-circle", &args[1])?;
+    let r = expect_int(node, "svg-circle", &args[2])?;
+    let fill = expect_str(node, "svg-circle", &args[3])?;
+    Ok(Value::Str(format!(
+        "<circle cx='{}' cy='{}' r='{}' fill='{}'/>",
+        cx,
+        cy,
+        r,
+        svg_escape(fill)
+    )))
+}
+
+// ---------------------------------------------------------------------------
 // 注册表
 // ---------------------------------------------------------------------------
 
@@ -722,6 +789,7 @@ pub fn builtins() -> std::collections::HashMap<&'static str, BuiltinFn> {
     m.insert("min", |_, a, n| min_max(n, "min", a));
     m.insert("max", |_, a, n| min_max(n, "max", a));
     m.insert("sqrt", |_, a, n| sqrt(n, a));
+    m.insert("rand", |_, a, n| rand(n, a));
     m.insert("==", |_, a, n| eq_neq(n, "==", a));
     m.insert("!=", |_, a, n| eq_neq(n, "!=", a));
     m.insert("<", |_, a, n| ordered(n, "<", a));
@@ -764,5 +832,7 @@ pub fn builtins() -> std::collections::HashMap<&'static str, BuiltinFn> {
     m.insert("out", |_, a, n| out(n, a, false));
     m.insert("err-out", |_, a, n| out(n, a, true));
     m.insert("ast->str", |_, a, n| ast_to_str(n, a));
+    m.insert("svg-text", |_, a, n| svg_text(n, a));
+    m.insert("svg-circle", |_, a, n| svg_circle(n, a));
     m
 }

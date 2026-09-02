@@ -25,8 +25,7 @@
 
   ;; ---- 基础 ----
 
-  (fn lcg (s Int) -> Int
-    (% (+ (* s 1103515245) 12345) 2147483648))
+  ;; 伪随机 = 内建 rand(LCG,确定性,见 06-std §1)
 
   (fn step-x (x Int) (d Int) -> Int
     (if (== d 1) (+ x 1) (if (== d 3) (- x 1) x)))
@@ -64,8 +63,8 @@
 
   ;; 追击 AI:每 tick 80% 贪心朝敌逼近(先对齐横轴再纵轴),20% 随机游走
   (fn decide-dir (t Tank) (e Tank) (rng Int) -> Int
-    (if (== (% (lcg rng) 5) 0)
-        (% (lcg (lcg rng)) 4)
+    (if (== (% (rand rng) 5) 0)
+        (% (rand (rand rng)) 4)
         (if (== (. t "x") (. e "x")) (toward-y t e) (toward-x t e))))
 
   ;; 是否与敌对齐且正朝他
@@ -143,7 +142,7 @@
             (let t1h Tank (if (is-some? b2a) (if (bullet-hits? (unwrap b2a) t1) (kill t1) t1) t1))
             (let t2h Tank (if (is-some? b1a) (if (bullet-hits? (unwrap b1a) t2) (kill t2) t2) t2))
             (let d1 Int (decide-dir t1h t2h rng))
-            (let d2 Int (decide-dir t2h t1h (lcg rng)))
+            (let d2 Int (decide-dir t2h t1h (rand rng)))
             ;; 对准敌人则站桩开火,否则按决策方向移动
             (let t1m Tank (if (facing? t1h t2h) t1h (move-tank (set-dir t1h d1))))
             (let t2m Tank (if (facing? t2h t1h) t2h (move-tank (set-dir t2h d2))))
@@ -154,7 +153,7 @@
             (let b2n (Option Bullet) (if (is-none? b2a) (if (fired? t2m t1m) (fire t2m t1m) b2a) b2a))
             (let b1f (Option Bullet) (if (is-some? b2a) (if (bullet-hits? (unwrap b2a) t1) none b1n) b1n))
             (let b2f (Option Bullet) (if (is-some? b1a) (if (bullet-hits? (unwrap b1a) t2) none b2n) b2n))
-            (sim t1f t2f b1f b2f (lcg (lcg rng)) (- n 1) frames2)))))
+            (sim t1f t2f b1f b2f (rand (rand rng)) (- n 1) frames2)))))
 
   ;; ---- 输出网页 ----
 

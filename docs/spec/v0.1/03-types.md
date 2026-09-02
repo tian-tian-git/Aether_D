@@ -61,6 +61,9 @@
 | `.` | `Named S Str -> 字段类型`(字段须为字面量) |
 | `out` `err-out` | `T -> ()` |
 | `ast->str` | `Ast -> Str` |
+| `rand` | `Int -> Int`(纯函数;非线性,不在静态验证域) |
+| `svg-text` | `Int Int Int Str Str -> Str` |
+| `svg-circle` | `Int Int Int Str -> Str` |
 
 ## 5. v0.1 明确不做
 

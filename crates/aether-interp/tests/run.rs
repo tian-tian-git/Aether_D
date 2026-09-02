@@ -214,6 +214,29 @@ fn int_arithmetic_wraps() {
 }
 
 #[test]
+fn rand_is_deterministic_pure_lcg() {
+    let src = r#"(module t
+  (fn main () -> Int
+    (if (== (rand 42) (rand 42))
+        (if (== (rand 42) (% (+ (* 42 1103515245) 12345) 2147483648)) 0 1)
+        1)))"#;
+    assert_eq!(run_ok(src), 0);
+}
+
+#[test]
+fn svg_builtins_escape_content() {
+    let src = r##"(module t
+  (fn main () -> Int
+    (block
+      (let a Str (svg-text 10 20 30 "#e53e3e" "<教&师>"))
+      (let b Str (svg-circle 5 6 7 "#3182ce"))
+      (if (and (== a "<text x='10' y='20' font-size='30' fill='#e53e3e'>&lt;教&amp;师&gt;</text>")
+               (== b "<circle cx='5' cy='6' r='7' fill='#3182ce'/>"))
+          0 1))))"##;
+    assert_eq!(run_ok(src), 0);
+}
+
+#[test]
 fn map_keys_put_roundtrip() {
     let src = r#"(module t
   (fn main () -> Int
