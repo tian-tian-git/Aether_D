@@ -82,7 +82,9 @@ python tools/harness/harness.py --corpus lib/aether-std.ae     # 静态蒸馏模
 
 ## 工作方式
 
-所有参与本项目的 AI 智能体,开工前必读 [AGENTS.md](AGENTS.md)。
+- **人类**(意图架构师 / 审查者 / 维护者):读 [docs/guides/human-guide.md](docs/guides/human-guide.md)
+- **AI**(生成者 / 维护者):读 [docs/guides/ai-guide.md](docs/guides/ai-guide.md)
+- 所有参与本项目的 AI 智能体,开工前必读 [AGENTS.md](AGENTS.md)。
 
 ## 硬规则
 

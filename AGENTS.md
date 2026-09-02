@@ -1,6 +1,7 @@
 # AGENTS.md —— Aether 项目智能体操作手册
 
 所有参与本项目的 AI 智能体(主智能体与子智能体)开工前必读并遵守本手册。
+**语言使用与维护的教学文档见 `docs/guides/ai-guide.md`(必读);人类侧对应文档为 `docs/guides/human-guide.md`。**
 
 ## 参与者角色
 
