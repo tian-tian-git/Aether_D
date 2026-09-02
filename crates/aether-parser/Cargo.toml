@@ -1,0 +1,9 @@
+[package]
+name = "aether-parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Aether 词法/解析/打印(前端)"
+
+[dependencies]
+aether-ast = { path = "../aether-ast" }

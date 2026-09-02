@@ -12,3 +12,17 @@ version = "0.1.0"
 dependencies = [
  "aether-ast",
 ]
+
+[[package]]
+name = "aether-diagnostic"
+version = "0.1.0"
+dependencies = [
+ "aether-ast",
+]
+
+[[package]]
+name = "aether-parser"
+version = "0.1.0"
+dependencies = [
+ "aether-ast",
+]

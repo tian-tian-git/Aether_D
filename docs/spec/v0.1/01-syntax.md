@@ -79,7 +79,7 @@ body      := expr
 
 | 形式 | 元数 | 说明 |
 | :--- | :--- | :--- |
-| `(module name form*)` | ≥1 | 文件名应等于模块名(`sort.ae` → `(module sort ...)`);约定而非强制,解析器不校验 |
+| `(module name form*)` | ≥1 | 文件名应等于模块名(`sort.ae` → `(module sort ...)`);约定而非强制,解析器不校验;嵌套 `module` 在 v0.1 非法(E2xxx),为未来命名空间预留 |
 | `(fn name params -> type [fx] [contracts] body)` | 见文法 | 具名函数;fx `!` 表示显式效果标记(首版解析保留、不检查);契约顺序任意但建议 `:pre` → `:post` |
 | `(fn params -> type [fx] [contracts] body)` | 匿名 | 首元素为 `(` 即匿名函数,作为值参与调用/传参 |
 | `(struct Name fields [:invariant e]*)` | ≥1 | 定义结构体与构造器;`:invariant` 可多个 |

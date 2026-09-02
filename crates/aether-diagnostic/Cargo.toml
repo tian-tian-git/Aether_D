@@ -1,0 +1,9 @@
+[package]
+name = "aether-diagnostic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Aether 结构化诊断(JSON 输出)"
+
+[dependencies]
+aether-ast = { path = "../aether-ast" }
