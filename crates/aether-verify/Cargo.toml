@@ -1,0 +1,13 @@
+[package]
+name = "aether-verify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Aether 静态验证:类型检查 + 契约验证(M3)"
+
+[dependencies]
+aether-ast = { path = "../aether-ast" }
+aether-diagnostic = { path = "../aether-diagnostic" }
+
+[dev-dependencies]
+aether-parser = { path = "../aether-parser" }

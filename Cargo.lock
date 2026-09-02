@@ -14,6 +14,7 @@ dependencies = [
  "aether-diagnostic",
  "aether-interp",
  "aether-parser",
+ "aether-verify",
 ]
 
 [[package]]
@@ -38,4 +39,13 @@ version = "0.1.0"
 dependencies = [
  "aether-ast",
  "aether-diagnostic",
+]
+
+[[package]]
+name = "aether-verify"
+version = "0.1.0"
+dependencies = [
+ "aether-ast",
+ "aether-diagnostic",
+ "aether-parser",
 ]

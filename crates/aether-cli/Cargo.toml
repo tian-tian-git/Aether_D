@@ -10,3 +10,4 @@ aether-ast = { path = "../aether-ast" }
 aether-parser = { path = "../aether-parser" }
 aether-diagnostic = { path = "../aether-diagnostic" }
 aether-interp = { path = "../aether-interp" }
+aether-verify = { path = "../aether-verify" }
