@@ -271,6 +271,26 @@ def main() -> int:
     return 0
 
 
+def classify_failure(r: dict) -> str:
+    """按最后一轮反馈分类失败原因。"""
+    fb = ""
+    for h in reversed(r.get("history", [])):
+        fb = h.get("feedback", "")
+        if fb:
+            break
+    if r["final_pass"]:
+        return "-"
+    if "E1" in fb or "E2" in fb:
+        return "syntax"
+    if "E4" in fb:
+        return "contract"
+    if "E3" in fb:
+        return "type"
+    if "AssertionError" in fb or "Traceback" in fb or "test failure" in fb:
+        return "logic"
+    return "other"
+
+
 def write_report(results: list, report_path: str = "") -> None:
     def stat(lang, key):
         vals = [r[key] for r in results if r["lang"] == lang and r["rounds"] > 0]
@@ -293,18 +313,25 @@ def write_report(results: list, report_path: str = "") -> None:
     lines.append(f"| 平均 prompt tokens | {stat('aether','prompt_tokens'):.0f} | {stat('python','prompt_tokens'):.0f} |\n")
     lines.append(f"| 平均 completion tokens | {stat('aether','completion_tokens'):.0f} | {stat('python','completion_tokens'):.0f} |\n")
     lines.append("\n## 逐任务明细\n\n")
-    lines.append("| 任务 | Aether 轮/通过 | Python 轮/通过 | Aether tokens | Python tokens |\n|---|---|---|---|---|\n")
+    lines.append("| 任务 | Aether 轮/通过(失败因) | Python 轮/通过(失败因) | Aether tokens | Python tokens |\n|---|---|---|---|---|\n")
     by_task = {}
     for r in results:
         by_task.setdefault(r["task"], {})[r["lang"]] = r
     for tid in [t["id"] for t in TASKS]:
         a = by_task.get(tid, {}).get("aether")
         p = by_task.get(tid, {}).get("python")
-        a_s = f"{a['rounds']}/{('✓' if a['final_pass'] else '✗')}" if a else "-"
-        p_s = f"{p['rounds']}/{('✓' if p['final_pass'] else '✗')}" if p else "-"
+        a_s = f"{a['rounds']}/{'✓' if a['final_pass'] else '✗(' + classify_failure(a) + ')'}" if a else "-"
+        p_s = f"{p['rounds']}/{'✓' if p['final_pass'] else '✗(' + classify_failure(p) + ')'}" if p else "-"
         a_t = f"{a['prompt_tokens']}/{a['completion_tokens']}" if a else "-"
         p_t = f"{p['prompt_tokens']}/{p['completion_tokens']}" if p else "-"
         lines.append(f"| {tid} | {a_s} | {p_s} | {a_t} | {p_t} |\n")
+    # 失败原因分布(Aether)
+    from collections import Counter
+    ae_fails = Counter(classify_failure(r) for r in results if r["lang"] == "aether" and not r["final_pass"])
+    if ae_fails:
+        lines.append("\n### Aether 失败原因分布\n\n")
+        for kind, n in ae_fails.most_common():
+            lines.append(f"- {kind}: {n}\n")
     lines.append("\n## 结论(自动生成,待主智能体解读)\n")
     out = Path(report_path) if report_path else ROOT / "docs" / "bench" / "m4-report.md"
     out.parent.mkdir(parents=True, exist_ok=True)
