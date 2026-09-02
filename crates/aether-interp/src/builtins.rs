@@ -2,14 +2,14 @@
 //!
 //! 全部以普通调用形式出现;错误统一为结构化诊断 E5xxx(带调用节点定位)。
 //! 除 `out`/`err-out` 外均为纯函数。
+//! 宿主抽象 `Host` 允许树遍历解释器与字节码 VM 共享同一套内建实现。
 
 use std::io::Write;
 use std::rc::Rc;
 
-use aether_ast::Expr;
+use aether_ast::{Expr, StructDef};
 use aether_diagnostic::Diagnostic;
 
-use crate::eval::Interp;
 use crate::value::{repr, FnValue, Value};
 
 // 错误码(注册于 05-diagnostics.md)
@@ -27,7 +27,14 @@ pub const E5014: &str = "E5014";
 /// range 的最大规模(资源守卫,保证确定性行为)。
 pub const RANGE_LIMIT: i64 = 1_000_000;
 
-pub type BuiltinFn = fn(&Interp, &[Value], &Expr) -> Result<Value, Diagnostic>;
+/// 内建函数执行宿主:内建中的高阶操作(filter/map/fold 调用函数值、`.` 查结构体定义)
+/// 需要回访宿主运行时。树遍历解释器与字节码 VM 各自实现。
+pub trait Host {
+    fn call_fn_value(&self, f: &Rc<FnValue>, args: Vec<Value>, call_site: &Expr) -> Result<Value, Diagnostic>;
+    fn struct_def(&self, name: &str) -> Option<Rc<StructDef>>;
+}
+
+pub type BuiltinFn = fn(&dyn Host, &[Value], &Expr) -> Result<Value, Diagnostic>;
 
 fn err(code: &str, message: String, node: &Expr, hint: &str) -> Diagnostic {
     Diagnostic::error(code, message, node.span)
@@ -452,7 +459,7 @@ fn concat(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
     }
 }
 
-fn filter_map(interp: &Interp, node: &Expr, name: &str, args: &[Value]) -> Result<Value, Diagnostic> {
+fn filter_map(host: &dyn Host, node: &Expr, name: &str, args: &[Value]) -> Result<Value, Diagnostic> {
     if args.len() != 2 {
         return Err(arity(node, name, args.len(), "2"));
     }
@@ -460,7 +467,7 @@ fn filter_map(interp: &Interp, node: &Expr, name: &str, args: &[Value]) -> Resul
     let items = expect_vec(node, name, &args[1])?;
     let mut out = Vec::new();
     for item in items.iter() {
-        let r = interp.call_fn_value(&f, vec![item.clone()], node)?;
+        let r = host.call_fn_value(&f, vec![item.clone()], node)?;
         if name == "filter" {
             match r {
                 Value::Bool(true) => out.push(item.clone()),
@@ -474,7 +481,7 @@ fn filter_map(interp: &Interp, node: &Expr, name: &str, args: &[Value]) -> Resul
     Ok(Value::Vec(Rc::new(out)))
 }
 
-fn fold(interp: &Interp, node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
+fn fold(host: &dyn Host, node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
     if args.len() != 3 {
         return Err(arity(node, "fold", args.len(), "3"));
     }
@@ -482,7 +489,7 @@ fn fold(interp: &Interp, node: &Expr, args: &[Value]) -> Result<Value, Diagnosti
     let items = expect_vec(node, "fold", &args[2])?;
     let mut acc = args[1].clone();
     for item in items.iter() {
-        acc = interp.call_fn_value(&f, vec![acc, item.clone()], node)?;
+        acc = host.call_fn_value(&f, vec![acc, item.clone()], node)?;
     }
     Ok(acc)
 }
@@ -645,7 +652,7 @@ fn unwrap(node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
 }
 
 /// 字段访问:`(. obj "field")`。字段名是字符串(显式,无变量求值魔法)。
-fn field_access(interp: &Interp, node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
+fn field_access(host: &dyn Host, node: &Expr, args: &[Value]) -> Result<Value, Diagnostic> {
     if args.len() != 2 {
         return Err(arity(node, ".", args.len(), "2"));
     }
@@ -653,7 +660,7 @@ fn field_access(interp: &Interp, node: &Expr, args: &[Value]) -> Result<Value, D
         return Err(type_err(node, ".", "Struct", &args[0]));
     };
     let field = expect_str(node, ".", &args[1])?;
-    let def = interp.struct_def(name).ok_or_else(|| {
+    let def = host.struct_def(name).ok_or_else(|| {
         err(E5011, format!("unknown struct '{}'", name), node, "define the struct before accessing its fields")
     })?;
     let idx = def.fields.iter().position(|f| f.name == field).ok_or_else(|| {

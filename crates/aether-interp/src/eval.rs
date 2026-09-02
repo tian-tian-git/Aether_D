@@ -53,6 +53,11 @@ impl Interp {
         self.structs.borrow().get(name).cloned()
     }
 
+    /// 内建宿主实现:树遍历解释器版。
+    pub fn host(&self) -> &dyn crate::builtins::Host {
+        self
+    }
+
     /// 运行完整程序:建立模块环境 → 注册结构体与函数 → 依序求值顶层项 → 调用 `main`。
     /// 返回进程退出码(main 返回 Int 时即该值,否则 0)。无 `main` → E5015。
     pub fn run_program(&self, program: &Program, argv: Vec<String>) -> Result<i32, Diagnostic> {
