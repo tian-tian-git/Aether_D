@@ -1,0 +1,12 @@
+;; Aether v0.1 示例:递归 + 契约(前置条件)
+;; 规范见 docs/spec/v0.1/(候选冻结稿)。
+
+(module fib
+
+  (fn fib (n Int) -> Int
+    :pre (>= n 0)
+    (if (< n 2)
+        n
+        (+ (fib (- n 1)) (fib (- n 2))))))
+
+;; 本文件为库模块(无 main);入口演示由 M2 的 run 子命令配合示例补充。

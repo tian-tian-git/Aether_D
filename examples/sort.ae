@@ -1,0 +1,12 @@
+;; Aether v0.1 示例:向量、匿名函数、契约(后置条件)
+;; 规范见 docs/spec/v0.1/(候选冻结稿)。
+
+(module sort
+
+  (fn qsort (xs (Vec Int)) -> (Vec Int)
+    :post (sorted? result)
+    (if (empty? xs)
+        xs
+        (concat (qsort (filter (fn (x Int) -> Bool (< x (head xs))) xs))
+                (vec (head xs))
+                (qsort (filter (fn (x Int) -> Bool (> x (head xs))) xs))))))

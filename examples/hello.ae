@@ -1,7 +1,7 @@
-;; Aether v0.1 草案语法示例
-;; 规范冻结前,语义以 docs/spec/v0.1/ 为准(M1)。
+;; Aether v0.1 示例:入口 + 显式效果标记
+;; 规范见 docs/spec/v0.1/(候选冻结稿)。
 
 (module hello
 
-  (fn main () -> ()
+  (fn main () -> () !
     (out "Hello, Aether!")))

@@ -1,0 +1,11 @@
+;; Aether v0.1 示例:结构体、字段访问、不变量
+;; 规范见 docs/spec/v0.1/(候选冻结稿)。
+
+(module point
+
+  (struct Point (x Float) (y Float)
+    :invariant (and (finite? x) (finite? y)))
+
+  (fn dist (p Point) -> Float
+    (sqrt (+ (* (. p x) (. p x))
+             (* (. p y) (. p y))))))
