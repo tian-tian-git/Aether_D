@@ -140,11 +140,12 @@ impl TypeChecker {
         for f in &fn_items {
             self.check_fn(f, &module_env)?;
         }
-        // 5. 结构体不变量
+        // 5. 结构体不变量(字段名遮蔽模块常量,如 (let W Int 20) 供 :invariant 引用)
         let structs: Vec<(String, Rc<StructDef>)> =
             self.structs.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         for (name, def) in structs {
-            let mut inv_env = Env::new();
+            let mut inv_env = module_env.clone();
+            inv_env.push();
             for f in &def.fields {
                 let t = self.from_ast_ty(&f.ty)?;
                 let _ = inv_env.define(&f.name, t);

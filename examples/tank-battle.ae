@@ -1,0 +1,185 @@
+;; 网页版坦克大战 —— 游戏引擎逻辑 100% 用 Aether 实现。
+;;
+;; Aether 负责:战场模拟、坦克 AI、弹道推进、命中判定、胜负判定,逐帧输出快照;
+;; 浏览器 JS 只负责把快照画出来(渲染壳)。
+;;
+;; 运行:
+;;   aether check examples/tank-battle.ae          # 类型 + Z3 静态契约验证
+;;   aether run  examples/tank-battle.ae > tank.html   # 编译执行 → 网页
+
+(module tank-battle
+
+  (let W Int 20)
+  (let H Int 15)
+  (let TICKS Int 160)
+
+  (struct Tank (x Int) (y Int) (dir Int) (alive Bool) (cooldown Int)
+    :invariant (and (and (>= x 0) (< x W))
+                    (and (>= y 0) (< y H))
+                    (and (and (>= dir 0) (< dir 4)) (>= cooldown 0))))
+
+  (struct Bullet (x Int) (y Int) (dir Int) (age Int)
+    :invariant (and (and (>= x 0) (< x W))
+                    (and (>= y 0) (< y H))
+                    (and (>= age 0) (<= age 12))))
+
+  ;; ---- 基础 ----
+
+  (fn lcg (s Int) -> Int
+    (% (+ (* s 1103515245) 12345) 2147483648))
+
+  (fn step-x (x Int) (d Int) -> Int
+    (if (== d 1) (+ x 1) (if (== d 3) (- x 1) x)))
+
+  (fn step-y (y Int) (d Int) -> Int
+    (if (== d 0) (- y 1) (if (== d 2) (+ y 1) y)))
+
+  (fn in-bounds? (x Int) (y Int) -> Bool
+    (and (and (>= x 0) (< x W)) (and (>= y 0) (< y H))))
+
+  ;; ---- 坦克 ----
+
+  (fn set-dir (t Tank) (d Int) -> Tank
+    (Tank (. t "x") (. t "y") d (. t "alive") (. t "cooldown")))
+
+  (fn set-cd (t Tank) (c Int) -> Tank
+    (Tank (. t "x") (. t "y") (. t "dir") (. t "alive") c))
+
+  (fn kill (t Tank) -> Tank
+    (Tank (. t "x") (. t "y") (. t "dir") false (. t "cooldown")))
+
+  (fn move-tank (t Tank) -> Tank
+    (block
+      (let nx Int (step-x (. t "x") (. t "dir")))
+      (let ny Int (step-y (. t "y") (. t "dir")))
+      (if (in-bounds? nx ny)
+          (Tank nx ny (. t "dir") (. t "alive") (. t "cooldown"))
+          (Tank (. t "x") (. t "y") (% (+ (. t "dir") 2) 4) (. t "alive") (. t "cooldown")))))
+
+  (fn toward-x (t Tank) (e Tank) -> Int
+    (if (< (. t "x") (. e "x")) 1 3))
+
+  (fn toward-y (t Tank) (e Tank) -> Int
+    (if (< (. t "y") (. e "y")) 2 0))
+
+  ;; 追击 AI:每 tick 80% 贪心朝敌逼近(先对齐横轴再纵轴),20% 随机游走
+  (fn decide-dir (t Tank) (e Tank) (rng Int) -> Int
+    (if (== (% (lcg rng) 5) 0)
+        (% (lcg (lcg rng)) 4)
+        (if (== (. t "x") (. e "x")) (toward-y t e) (toward-x t e))))
+
+  ;; 是否与敌对齐且正朝他
+  (fn facing? (t Tank) (e Tank) -> Bool
+    (or (and (== (. t "x") (. e "x"))
+             (or (and (== (. t "dir") 0) (> (. t "y") (. e "y")))
+                 (and (== (. t "dir") 2) (< (. t "y") (. e "y")))))
+        (and (== (. t "y") (. e "y"))
+             (or (and (== (. t "dir") 1) (< (. t "x") (. e "x")))
+                 (and (== (. t "dir") 3) (> (. t "x") (. e "x")))))))
+
+  (fn fire (t Tank) (e Tank) -> (Option Bullet)
+    (if (and (facing? t e) (== (. t "cooldown") 0))
+        (block
+          (let bx Int (step-x (. t "x") (. t "dir")))
+          (let by Int (step-y (. t "y") (. t "dir")))
+          (if (in-bounds? bx by)
+              (some (Bullet bx by (. t "dir") 0))
+              none))
+        none))
+
+  (fn fired? (t Tank) (e Tank) -> Bool
+    (and (. t "alive") (and (facing? t e) (== (. t "cooldown") 0))))
+
+  (fn dec-cd (t Tank) -> Tank
+    (set-cd t (max 0 (- (. t "cooldown") 1))))
+
+  (fn after-fire (t Tank) (e Tank) -> Tank
+    (if (fired? t e) (set-cd (dec-cd t) 3) (dec-cd t)))
+
+  ;; ---- 子弹 ----
+
+  (fn advance-bullet (b (Option Bullet)) -> (Option Bullet)
+    (if (is-none? b)
+        none
+        (block
+          (let bb Bullet (unwrap b))
+          (let nx Int (step-x (. bb "x") (. bb "dir")))
+          (let ny Int (step-y (. bb "y") (. bb "dir")))
+          (let na Int (+ (. bb "age") 1))
+          (if (and (in-bounds? nx ny) (<= na 12))
+              (some (Bullet nx ny (. bb "dir") na))
+              none))))
+
+  (fn bullet-hits? (b Bullet) (t Tank) -> Bool
+    (and (. t "alive") (and (== (. b "x") (. t "x")) (== (. b "y") (. t "y")))))
+
+  ;; ---- 快照(每帧 16 个 Int)----
+
+  (fn bsnap (b (Option Bullet)) -> (Vec Int)
+    (if (is-none? b)
+        (vec -1 -1 -1 -1)
+        (block
+          (let bb Bullet (unwrap b))
+          (vec (. bb "x") (. bb "y") (. bb "dir") (. bb "age")))))
+
+  (fn snapshot (t1 Tank) (t2 Tank) (b1 (Option Bullet)) (b2 (Option Bullet)) -> (Vec Int)
+    :post (== (len result) 16)
+    (concat (vec (. t1 "x") (. t1 "y") (. t1 "dir") (if (. t1 "alive") 1 0))
+            (vec (. t2 "x") (. t2 "y") (. t2 "dir") (if (. t2 "alive") 1 0))
+            (bsnap b1)
+            (bsnap b2)))
+
+  ;; ---- 主循环 ----
+
+  (fn sim (t1 Tank) (t2 Tank) (b1 (Option Bullet)) (b2 (Option Bullet)) (rng Int) (n Int) (frames (Vec (Vec Int))) -> (Vec (Vec Int))
+    :pre (>= n 0)
+    (block
+      (let frames2 (Vec (Vec Int)) (push frames (snapshot t1 t2 b1 b2)))
+      (if (or (== n 0) (or (not (. t1 "alive")) (not (. t2 "alive"))))
+          frames2
+          (block
+            (let b1a (Option Bullet) (advance-bullet b1))
+            (let b2a (Option Bullet) (advance-bullet b2))
+            (let t1h Tank (if (is-some? b2a) (if (bullet-hits? (unwrap b2a) t1) (kill t1) t1) t1))
+            (let t2h Tank (if (is-some? b1a) (if (bullet-hits? (unwrap b1a) t2) (kill t2) t2) t2))
+            (let d1 Int (decide-dir t1h t2h rng))
+            (let d2 Int (decide-dir t2h t1h (lcg rng)))
+            ;; 对准敌人则站桩开火,否则按决策方向移动
+            (let t1m Tank (if (facing? t1h t2h) t1h (move-tank (set-dir t1h d1))))
+            (let t2m Tank (if (facing? t2h t1h) t2h (move-tank (set-dir t2h d2))))
+            (let t1f Tank (after-fire t1m t2m))
+            (let t2f Tank (after-fire t2m t1m))
+            ;; 单发纪律:上一发子弹仍在飞行(或刚命中被清空)时不重新开火
+            (let b1n (Option Bullet) (if (is-none? b1a) (if (fired? t1m t2m) (fire t1m t2m) b1a) b1a))
+            (let b2n (Option Bullet) (if (is-none? b2a) (if (fired? t2m t1m) (fire t2m t1m) b2a) b2a))
+            (let b1f (Option Bullet) (if (is-some? b2a) (if (bullet-hits? (unwrap b2a) t1) none b1n) b1n))
+            (let b2f (Option Bullet) (if (is-some? b1a) (if (bullet-hits? (unwrap b1a) t2) none b2n) b2n))
+            (sim t1f t2f b1f b2f (lcg (lcg rng)) (- n 1) frames2)))))
+
+  ;; ---- 输出网页 ----
+
+  (fn frame-js (f (Vec Int)) -> Str
+    (concat "["
+            (fold (fn (s Str) (v Int) -> Str (concat s (int->str v) ",")) "" f)
+            "],"))
+
+  (fn print-frames (frames (Vec (Vec Int))) -> Int
+    (fold (fn (acc Int) (f (Vec Int)) -> Int (block (out (frame-js f)) (+ acc 1))) 0 frames))
+
+  (fn main () -> () !
+    (block
+      (let t1 Tank (Tank 3 3 1 true 0))
+      (let t2 Tank (Tank 16 11 3 true 2))
+      (let frames (Vec (Vec Int)) (sim t1 t2 none none 42 TICKS (vec)))
+      (out "<!DOCTYPE html>")
+      (out "<html lang='zh'><head><meta charset='utf-8'><title>Aether 坦克大战</title><style>body{background:#0b0f19;color:#cbd5e1;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:24px}h1{margin:0;font-size:20px}#t{font-size:14px;color:#94a3b8}canvas{border:1px solid #1e2a3a}</style></head>")
+      (out "<body><h1>坦克大战 —— 引擎逻辑 100% 由 Aether 编译执行</h1><canvas id='c' width='720' height='540'></canvas><div id='t'></div><script>")
+      (out "const W=20,H=15,S=36;")
+      (out "const FRAMES=[")
+      (let n Int (print-frames frames))
+      (out "];")
+      (out "const cv=document.getElementById('c');const g=cv.getContext('2d');const pal=['#222','#e53e3e','#3182ce'];let i=0;")
+      (out "function tank(x,y,d,c,alive){if(!alive){g.fillStyle='#334155';g.fillRect(x*S+5,y*S+5,S-10,S-10);return;}g.fillStyle=c;g.fillRect(x*S+5,y*S+5,S-10,S-10);g.strokeStyle=c;g.lineWidth=4;g.beginPath();const cx=x*S+S/2,cy=y*S+S/2;g.moveTo(cx,cy);if(d==0)g.lineTo(cx,cy-13);if(d==1)g.lineTo(cx+13,cy);if(d==2)g.lineTo(cx,cy+13);if(d==3)g.lineTo(cx-13,cy);g.stroke();}")
+      (out "function frame(){g.fillStyle='#0b0f19';g.fillRect(0,0,720,540);g.strokeStyle='#1e2a3a';for(let x=0;x<W;x++)for(let y=0;y<H;y++)g.strokeRect(x*S,y*S,S,S);const f=FRAMES[i];if(!f)return;tank(f[0],f[1],f[2],pal[1],f[3]);tank(f[4],f[5],f[6],pal[2],f[7]);g.fillStyle='#fbbf24';if(f[8]>=0){g.beginPath();g.arc(f[8]*S+S/2,f[9]*S+S/2,5,0,7);g.fill();}if(f[11]>=0){g.beginPath();g.arc(f[11]*S+S/2,f[12]*S+S/2,5,0,7);g.fill();}const last=i+1>=FRAMES.length;if(last){if(f[3]&&f[7]){document.getElementById('t').textContent='平局:双方在 '+FRAMES.length+' 帧内存活';}else{document.getElementById('t').textContent=(f[3]?'红方':'蓝方')+' 获胜!总帧数 '+FRAMES.length;}}else{document.getElementById('t').textContent='第 '+(i+1)+' / '+FRAMES.length+' 帧';}i++;if(i<FRAMES.length)setTimeout(frame,90);}")
+      (out "frame();")
+      (out "</script></body></html>"))))
