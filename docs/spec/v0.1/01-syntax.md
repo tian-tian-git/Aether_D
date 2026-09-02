@@ -51,7 +51,7 @@ form      := (module IDENT form*)
 
 param     := (IDENT TYPE)
 field     := (IDENT TYPE)
-contract  := ":pre" expr | ":post" expr | ":invariant" expr
+contract  := ":pre" expr | ":post" expr      ;; fn 仅允许 :pre / :post
 invariant := ":invariant" expr          ;; struct 仅允许 :invariant
 fx        := "!"
 

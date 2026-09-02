@@ -180,7 +180,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn lex_ident(&mut self, start: Pos) -> Result<TokenKind, LexError> {
+    fn lex_ident(&mut self, _start: Pos) -> Result<TokenKind, LexError> {
         let mut name = String::new();
         while let Some(c) = self.peek() {
             if is_ident_continue(c) {
