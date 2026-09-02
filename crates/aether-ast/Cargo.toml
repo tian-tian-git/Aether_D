@@ -1,0 +1,8 @@
+[package]
+name = "aether-ast"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Aether 抽象语法树(AST)定义"
+
+[dependencies]

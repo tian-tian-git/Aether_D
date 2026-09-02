@@ -1,0 +1,7 @@
+;; Aether v0.1 草案语法示例
+;; 规范冻结前,语义以 docs/spec/v0.1/ 为准(M1)。
+
+(module hello
+
+  (fn main () -> ()
+    (out "Hello, Aether!")))

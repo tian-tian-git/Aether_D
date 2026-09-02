@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+# 共享依赖在此声明、各 crate 按需引用(后续里程碑补充 proptest/z3/thiserror 等)
